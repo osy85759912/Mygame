@@ -7,14 +7,14 @@
   const MAX_LIFE_LEVEL = 7;
 
   const WEAPONS = [
-    { name: "장난감 총", emoji: "🔫", baseDamage: 5, baseCooldown: 420, cost: 0, tierColor: "#cfd6e0", scale: 1.0 },
-    { name: "리볼버", emoji: "🔫", baseDamage: 12, baseCooldown: 380, cost: 150, tierColor: "#8bd17c", scale: 1.12 },
-    { name: "더블배럴 샷건", emoji: "🔫", baseDamage: 26, baseCooldown: 420, cost: 500, tierColor: "#5cc8e0", scale: 1.24 },
-    { name: "기관단총", emoji: "🔫", baseDamage: 55, baseCooldown: 500, cost: 1500, tierColor: "#7c8bff", scale: 1.36 },
-    { name: "개틀링건", emoji: "🔫", baseDamage: 20, baseCooldown: 140, cost: 4000, tierColor: "#d17cff", scale: 1.48 },
-    { name: "로켓런처", emoji: "🚀", baseDamage: 130, baseCooldown: 700, cost: 10000, tierColor: "#ff9d4d", scale: 1.6 },
-    { name: "발칸포", emoji: "🔫", baseDamage: 260, baseCooldown: 850, cost: 25000, tierColor: "#ff6b6b", scale: 1.75 },
-    { name: "레이저건", emoji: "🔫", baseDamage: 520, baseCooldown: 1000, cost: 60000, tierColor: "#ffd93d", scale: 1.9 },
+    { name: "장난감 총", baseDamage: 5, baseCooldown: 420, cost: 0, tierColor: "#cfd6e0", scale: 1.0, barrels: 1, tip: "cap" },
+    { name: "리볼버", baseDamage: 12, baseCooldown: 380, cost: 150, tierColor: "#8bd17c", scale: 1.14, barrels: 1, tip: "cap" },
+    { name: "더블배럴 샷건", baseDamage: 26, baseCooldown: 420, cost: 500, tierColor: "#5cc8e0", scale: 1.28, barrels: 2, tip: "cap" },
+    { name: "기관단총", baseDamage: 55, baseCooldown: 500, cost: 1500, tierColor: "#7c8bff", scale: 1.42, barrels: 1, tip: "cap" },
+    { name: "개틀링건", baseDamage: 20, baseCooldown: 140, cost: 4000, tierColor: "#d17cff", scale: 1.56, barrels: 3, tip: "cap" },
+    { name: "로켓런처", baseDamage: 130, baseCooldown: 700, cost: 10000, tierColor: "#ff9d4d", scale: 1.7, barrels: 1, tip: "cone" },
+    { name: "발칸포", baseDamage: 260, baseCooldown: 850, cost: 25000, tierColor: "#ff6b6b", scale: 1.85, barrels: 4, tip: "cone" },
+    { name: "레이저건", baseDamage: 520, baseCooldown: 1000, cost: 60000, tierColor: "#ffd93d", scale: 2.0, barrels: 1, tip: "crystal" },
   ];
 
   function buildingMaxHP(wave) {
@@ -344,6 +344,7 @@
     if (session.lives <= 0) {
       session.phase = "gameover";
       showGameOver();
+      resetProgressOnDeath();
     } else {
       session.phase = "idle";
       nextBtn.textContent = "재도전";
@@ -353,8 +354,15 @@
   }
 
   function showGameOver() {
-    gameOverStats.innerHTML = `이번 판 웨이브 <b>${session.wave}</b> 까지 도달했어요.<br>보유 골드는 그대로 유지됩니다 (총 ${save.gold.toLocaleString("ko-KR")}💰).`;
+    gameOverStats.innerHTML = `이번 판 웨이브 <b>${session.wave}</b> 까지 도달했어요.<br>모은 골드와 무기 강화는 모두 초기화됩니다.<br>최고 기록: 웨이브 ${save.bestWave}`;
     gameOverOverlay.classList.remove("hidden");
+  }
+
+  function resetProgressOnDeath() {
+    const bestWave = save.bestWave;
+    save = defaultSave();
+    save.bestWave = bestWave;
+    persist();
   }
 
   function restartRun() {
@@ -396,7 +404,7 @@
       const cost = nw.cost;
       items.push(`
         <div class="shop-item">
-          <div class="icon">${nw.emoji}</div>
+          <div class="icon" style="color:${nw.tierColor}"><svg class="icon-svg"><use href="#icon-crosshair"></use></svg></div>
           <div class="info">
             <div class="title">무기 업그레이드: ${nw.name}</div>
             <div class="desc">공격력 ${currentWeapon().baseDamage} → ${nw.baseDamage} / 쿨타임 ${currentWeapon().baseCooldown}ms → ${nw.baseCooldown}ms</div>
@@ -407,7 +415,7 @@
     } else {
       items.push(`
         <div class="shop-item">
-          <div class="icon">🏆</div>
+          <div class="icon"><svg class="icon-svg"><use href="#icon-star"></use></svg></div>
           <div class="info">
             <div class="title">최고 등급 무기 보유중</div>
             <div class="desc">${WEAPONS[WEAPONS.length - 1].name}을 이미 장착했습니다.</div>
@@ -420,7 +428,7 @@
     const dmgCost = dmgUpgradeCost(save.dmgLevel);
     items.push(`
       <div class="shop-item">
-        <div class="icon">💪</div>
+        <div class="icon"><svg class="icon-svg"><use href="#icon-burst"></use></svg></div>
         <div class="info">
           <div class="title">공격력 강화 (Lv.${save.dmgLevel})</div>
           <div class="desc">현재 공격력 ${currentDamage().toFixed(1)} → ${(currentWeapon().baseDamage * (1 + (save.dmgLevel + 1) * 0.08)).toFixed(1)} (+8%)</div>
@@ -434,7 +442,7 @@
     const nextCooldown = Math.max(60, currentWeapon().baseCooldown * Math.pow(0.96, save.speedLevel + 1));
     items.push(`
       <div class="shop-item">
-        <div class="icon">⚡</div>
+        <div class="icon"><svg class="icon-svg"><use href="#icon-gauge"></use></svg></div>
         <div class="info">
           <div class="title">공격속도 강화 (Lv.${save.speedLevel})</div>
           <div class="desc">쿨타임 ${Math.round(currentCooldown())}ms → ${Math.round(nextCooldown)}ms</div>
@@ -448,7 +456,7 @@
       const lifeCost = lifeUpgradeCost(save.lifeLevel);
       items.push(`
         <div class="shop-item">
-          <div class="icon">❤️</div>
+          <div class="icon"><svg class="icon-svg"><use href="#icon-heart"></use></svg></div>
           <div class="info">
             <div class="title">최대 생명 증가</div>
             <div class="desc">최대 생명 ${maxLives()} → ${maxLives() + 1}</div>
@@ -459,7 +467,7 @@
     } else {
       items.push(`
         <div class="shop-item">
-          <div class="icon">❤️</div>
+          <div class="icon"><svg class="icon-svg"><use href="#icon-heart"></use></svg></div>
           <div class="info">
             <div class="title">최대 생명: ${maxLives()} (최대치)</div>
             <div class="desc">더 이상 강화할 수 없습니다.</div>
@@ -472,7 +480,7 @@
     const gmCost = goldMultUpgradeCost(save.goldMultLevel);
     items.push(`
       <div class="shop-item">
-        <div class="icon">📈</div>
+        <div class="icon"><svg class="icon-svg"><use href="#icon-trend"></use></svg></div>
         <div class="info">
           <div class="title">골드 획득량 증가 (Lv.${save.goldMultLevel})</div>
           <div class="desc">획득 배율 x${goldMultiplier().toFixed(2)} → x${(1 + (save.goldMultLevel + 1) * 0.15).toFixed(2)}</div>
@@ -539,10 +547,12 @@
 
     const ml = maxLives();
     let hearts = "";
-    for (let i = 0; i < ml; i++) hearts += i < session.lives ? "❤️" : "🤍";
-    livesDisplayEl.textContent = hearts;
+    for (let i = 0; i < ml; i++) {
+      hearts += `<svg class="icon-svg heart ${i < session.lives ? "filled" : "empty"}"><use href="#icon-heart"></use></svg>`;
+    }
+    livesDisplayEl.innerHTML = hearts;
 
-    weaponEmojiEl.textContent = currentWeapon().emoji;
+    weaponEmojiEl.style.color = currentWeapon().tierColor;
     weaponNameEl.textContent = currentWeapon().name;
     weaponDamageEl.textContent = Math.round(currentDamage());
   }
@@ -660,6 +670,32 @@
     ctx.fillRect(20, 14, (W - 40) * timeFrac, 6);
   }
 
+  function roundRectPath(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.lineTo(x + w - r, y);
+    c.arcTo(x + w, y, x + w, y + r, r);
+    c.lineTo(x + w, y + h - r);
+    c.arcTo(x + w, y + h, x + w - r, y + h, r);
+    c.lineTo(x + r, y + h);
+    c.arcTo(x, y + h, x, y + h - r, r);
+    c.lineTo(x, y + r);
+    c.arcTo(x, y, x + r, y, r);
+    c.closePath();
+  }
+
+  function shade(hex, percent) {
+    const num = parseInt(hex.slice(1), 16);
+    let r = (num >> 16) + Math.round(2.55 * percent);
+    let g = ((num >> 8) & 0xff) + Math.round(2.55 * percent);
+    let b = (num & 0xff) + Math.round(2.55 * percent);
+    r = Math.min(255, Math.max(0, r));
+    g = Math.min(255, Math.max(0, g));
+    b = Math.min(255, Math.max(0, b));
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+
+  // Fixed emplacement: the cannon always points straight up at the building.
   function getGunState(now) {
     const elapsed = now - fireStart;
     const active = elapsed >= 0 && elapsed < RECOIL_DURATION;
@@ -668,40 +704,111 @@
     const weapon = currentWeapon();
     const size = 58 * weapon.scale;
     const gx = W / 2;
-    const gy = GROUND_Y + 20 + recoil * 8 - idleBob;
-    const rotation = -Math.PI / 2 + recoil * 0.2;
-    return { elapsed, active, recoil, weapon, size, gx, gy, rotation };
+    const gy = GROUND_Y + 20 - idleBob;
+    const barrelH = size * 0.92;
+    const kick = recoil * size * 0.16;
+    return { elapsed, active, recoil, weapon, size, gx, gy, barrelH, kick };
   }
 
   function getMuzzlePoint() {
     const s = getGunState(performance.now());
-    const dirX = Math.cos(s.rotation);
-    const dirY = Math.sin(s.rotation);
-    return { x: s.gx + dirX * s.size * 0.52, y: s.gy + dirY * s.size * 0.52 };
+    return { x: s.gx, y: s.gy + s.kick - s.barrelH };
   }
 
   function drawGun() {
     const s = getGunState(performance.now());
+    const { gx, gy, size, weapon, kick, barrelH } = s;
+
+    ctx.save();
+    ctx.translate(gx, gy);
 
     // tier glow
     ctx.save();
-    ctx.globalAlpha = 0.5;
-    const glow = ctx.createRadialGradient(s.gx, s.gy, 0, s.gx, s.gy, s.size * 0.9);
-    glow.addColorStop(0, s.weapon.tierColor);
+    ctx.globalAlpha = 0.4;
+    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 1.15);
+    glow.addColorStop(0, weapon.tierColor);
     glow.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(s.gx, s.gy, s.size * 0.9, 0, Math.PI * 2);
+    ctx.arc(0, 0, size * 1.15, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
-    ctx.save();
-    ctx.translate(s.gx, s.gy);
-    ctx.rotate(s.rotation);
-    ctx.font = `${s.size}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(s.weapon.emoji, 0, 0);
+    // mount / base
+    const mountW = size * 0.66;
+    const mountH = size * 0.3;
+    ctx.fillStyle = "#2c2d30";
+    ctx.beginPath();
+    ctx.moveTo(-mountW / 2, mountH * 0.1);
+    ctx.lineTo(mountW / 2, mountH * 0.1);
+    ctx.lineTo(mountW * 0.36, mountH);
+    ctx.lineTo(-mountW * 0.36, mountH);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "#141517";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "#57595d";
+    [-mountW * 0.26, mountW * 0.26].forEach((rx) => {
+      ctx.beginPath();
+      ctx.arc(rx, mountH * 0.55, size * 0.03, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // barrels
+    const n = weapon.barrels;
+    const totalW = size * (0.26 + n * 0.17);
+    const gap = totalW / n;
+    const bw = gap * 0.7;
+    const startX = -totalW / 2 + gap / 2;
+
+    for (let i = 0; i < n; i++) {
+      const bx = startX + i * gap;
+      const by = kick;
+      roundRectPath(ctx, bx - bw / 2, by - barrelH, bw, barrelH, bw * 0.3);
+      const grad = ctx.createLinearGradient(bx - bw / 2, 0, bx + bw / 2, 0);
+      grad.addColorStop(0, shade(weapon.tierColor, -30));
+      grad.addColorStop(0.5, weapon.tierColor);
+      grad.addColorStop(1, shade(weapon.tierColor, -30));
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.strokeStyle = "#141517";
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(255,255,255,0.32)";
+      ctx.fillRect(bx - bw * 0.12, by - barrelH + 3, bw * 0.16, barrelH - 8);
+
+      const tipY = by - barrelH;
+      if (weapon.tip === "cone") {
+        ctx.fillStyle = "#141517";
+        ctx.beginPath();
+        ctx.moveTo(bx - bw * 0.65, tipY + bw * 0.5);
+        ctx.lineTo(bx + bw * 0.65, tipY + bw * 0.5);
+        ctx.lineTo(bx, tipY - bw * 0.55);
+        ctx.closePath();
+        ctx.fill();
+      } else if (weapon.tip === "crystal") {
+        ctx.save();
+        ctx.globalAlpha = 0.92;
+        ctx.fillStyle = "#fff6c9";
+        ctx.beginPath();
+        ctx.moveTo(bx, tipY - bw * 0.85);
+        ctx.lineTo(bx + bw * 0.5, tipY);
+        ctx.lineTo(bx, tipY + bw * 0.35);
+        ctx.lineTo(bx - bw * 0.5, tipY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.fillStyle = "#141517";
+        ctx.beginPath();
+        ctx.ellipse(bx, tipY, bw / 2, bw * 0.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
     ctx.restore();
 
     // muzzle flash
@@ -710,12 +817,12 @@
       const mp = getMuzzlePoint();
       ctx.save();
       ctx.globalAlpha = flashAlpha;
-      const flash = ctx.createRadialGradient(mp.x, mp.y, 0, mp.x, mp.y, 24);
+      const flash = ctx.createRadialGradient(mp.x, mp.y, 0, mp.x, mp.y, 20 + n * 4);
       flash.addColorStop(0, "#fff6d0");
       flash.addColorStop(1, "rgba(255,246,208,0)");
       ctx.fillStyle = flash;
       ctx.beginPath();
-      ctx.arc(mp.x, mp.y, 24, 0, Math.PI * 2);
+      ctx.arc(mp.x, mp.y, 20 + n * 4, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
