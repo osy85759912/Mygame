@@ -7,14 +7,14 @@
   const MAX_LIFE_LEVEL = 7;
 
   const WEAPONS = [
-    { name: "맨주먹", emoji: "👊", baseDamage: 5, baseCooldown: 420, cost: 0 },
-    { name: "나무 방망이", emoji: "🏏", baseDamage: 12, baseCooldown: 380, cost: 150 },
-    { name: "도끼", emoji: "🪓", baseDamage: 26, baseCooldown: 420, cost: 500 },
-    { name: "슬레지해머", emoji: "🔨", baseDamage: 55, baseCooldown: 500, cost: 1500 },
-    { name: "사슬톱", emoji: "⚙️", baseDamage: 20, baseCooldown: 140, cost: 4000 },
-    { name: "다이너마이트", emoji: "🧨", baseDamage: 130, baseCooldown: 700, cost: 10000 },
-    { name: "레킹볼", emoji: "🏗️", baseDamage: 260, baseCooldown: 850, cost: 25000 },
-    { name: "레이저 캐논", emoji: "🔫", baseDamage: 520, baseCooldown: 1000, cost: 60000 },
+    { name: "장난감 총", emoji: "🔫", baseDamage: 5, baseCooldown: 420, cost: 0, tierColor: "#cfd6e0", scale: 1.0 },
+    { name: "리볼버", emoji: "🔫", baseDamage: 12, baseCooldown: 380, cost: 150, tierColor: "#8bd17c", scale: 1.12 },
+    { name: "더블배럴 샷건", emoji: "🔫", baseDamage: 26, baseCooldown: 420, cost: 500, tierColor: "#5cc8e0", scale: 1.24 },
+    { name: "기관단총", emoji: "🔫", baseDamage: 55, baseCooldown: 500, cost: 1500, tierColor: "#7c8bff", scale: 1.36 },
+    { name: "개틀링건", emoji: "🔫", baseDamage: 20, baseCooldown: 140, cost: 4000, tierColor: "#d17cff", scale: 1.48 },
+    { name: "로켓런처", emoji: "🚀", baseDamage: 130, baseCooldown: 700, cost: 10000, tierColor: "#ff9d4d", scale: 1.6 },
+    { name: "발칸포", emoji: "🔫", baseDamage: 260, baseCooldown: 850, cost: 25000, tierColor: "#ff6b6b", scale: 1.75 },
+    { name: "레이저건", emoji: "🔫", baseDamage: 520, baseCooldown: 1000, cost: 60000, tierColor: "#ffd93d", scale: 1.9 },
   ];
 
   function buildingMaxHP(wave) {
@@ -151,6 +151,21 @@
     osc.stop(now + duration);
   }
   function sfxHit() { playTone(220 + Math.random() * 60, 0.08, "square", 0.05); }
+  function sfxShoot() {
+    if (muted || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "square";
+    const now = audioCtx.currentTime;
+    osc.frequency.setValueAtTime(950, now);
+    osc.frequency.exponentialRampToValueAtTime(140, now + 0.09);
+    gain.gain.setValueAtTime(0.09, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  }
   function sfxDestroy() {
     [660, 880, 1100].forEach((f, i) => setTimeout(() => playTone(f, 0.15, "triangle", 0.07), i * 60));
   }
@@ -165,6 +180,7 @@
   // ---------- Particles & floating text ----------
   let particles = [];
   let floatingTexts = [];
+  let bullets = [];
   let shakeTime = 0;
   let shakeMag = 0;
 
@@ -274,21 +290,26 @@
     const now = performance.now();
     if (now - session.lastAttackTime < currentCooldown()) return;
     session.lastAttackTime = now;
-    swingStart = now;
+    fireStart = now;
 
-    const dmg = Math.round(currentDamage());
     const b = session.building;
-    b.hp = Math.max(0, b.hp - dmg);
-    b.hitFlash = 6;
     const hit = getHitPoint(b);
-    spawnHitParticles(hit.x, hit.y);
-    showFloatingText(`-${dmg}`, hit.x, hit.y, "#ffffff", true);
-    sfxHit();
-
-    if (b.hp <= 0) {
-      destroyBuilding();
-    }
-    updateUI();
+    const muzzle = getMuzzlePoint();
+    const dx = hit.x - muzzle.x;
+    const dy = hit.y - muzzle.y;
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    const speed = 1900;
+    bullets.push({
+      x: muzzle.x,
+      y: muzzle.y,
+      vx: (dx / dist) * speed,
+      vy: (dy / dist) * speed,
+      damage: Math.round(currentDamage()),
+      building: b,
+      color: currentWeapon().tierColor,
+      size: 3.5 + save.weaponTier * 0.6,
+    });
+    sfxShoot();
   }
 
   function destroyBuilding() {
@@ -389,7 +410,7 @@
           <div class="icon">🏆</div>
           <div class="info">
             <div class="title">최고 등급 무기 보유중</div>
-            <div class="desc">레이저 캐논을 이미 장착했습니다.</div>
+            <div class="desc">${WEAPONS[WEAPONS.length - 1].name}을 이미 장착했습니다.</div>
           </div>
         </div>
       `);
@@ -527,8 +548,9 @@
   }
 
   // ---------- Rendering ----------
-  const ATTACK_ANIM_DURATION = 240;
-  let swingStart = -Infinity;
+  const RECOIL_DURATION = 140;
+  let fireStart = -Infinity;
+  let lastFrameTime = null;
 
   function drawBackground() {
     const grad = ctx.createLinearGradient(0, 0, 0, H);
@@ -638,47 +660,118 @@
     ctx.fillRect(20, 14, (W - 40) * timeFrac, 6);
   }
 
-  function drawPlayer() {
-    const now = performance.now();
-    const elapsed = now - swingStart;
-    const active = elapsed >= 0 && elapsed < ATTACK_ANIM_DURATION;
-    const landElapsed = elapsed - ATTACK_ANIM_DURATION;
-    const landing = !active && landElapsed >= 0 && landElapsed < 100;
+  function getGunState(now) {
+    const elapsed = now - fireStart;
+    const active = elapsed >= 0 && elapsed < RECOIL_DURATION;
+    const recoil = active ? Math.sin(Math.min(elapsed / RECOIL_DURATION, 1) * Math.PI) : 0;
+    const idleBob = active ? 0 : Math.sin(now / 600) * 2;
+    const weapon = currentWeapon();
+    const size = 58 * weapon.scale;
+    const gx = W / 2;
+    const gy = GROUND_Y + 20 + recoil * 8 - idleBob;
+    const rotation = -Math.PI / 2 + recoil * 0.2;
+    return { elapsed, active, recoil, weapon, size, gx, gy, rotation };
+  }
 
-    // 0 -> 1 -> 0 hop arc while the attack animation is playing
-    const hop = active ? Math.sin(Math.min(elapsed / ATTACK_ANIM_DURATION, 1) * Math.PI) : 0;
-    const landSquash = landing ? Math.sin((landElapsed / 100) * Math.PI) * 0.22 : 0;
-    const idleBob = !active && !landing ? Math.sin(now / 480) * 2 : 0;
+  function getMuzzlePoint() {
+    const s = getGunState(performance.now());
+    const dirX = Math.cos(s.rotation);
+    const dirY = Math.sin(s.rotation);
+    return { x: s.gx + dirX * s.size * 0.52, y: s.gy + dirY * s.size * 0.52 };
+  }
 
-    const jumpHeight = 42;
-    const lean = hop * 0.24;
+  function drawGun() {
+    const s = getGunState(performance.now());
 
-    const px = W / 2;
-    const py = GROUND_Y + 30 - hop * jumpHeight - idleBob;
-
-    // body: leap up with a forward lean, squash on landing
+    // tier glow
     ctx.save();
-    ctx.translate(px - 26, py);
-    ctx.rotate(lean);
-    ctx.scale(1 - hop * 0.05 + landSquash * 0.7, 1 + hop * 0.1 - landSquash);
-    ctx.font = "40px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("🧍", 0, 0);
+    ctx.globalAlpha = 0.5;
+    const glow = ctx.createRadialGradient(s.gx, s.gy, 0, s.gx, s.gy, s.size * 0.9);
+    glow.addColorStop(0, s.weapon.tierColor);
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(s.gx, s.gy, s.size * 0.9, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
 
-    // weapon: fast, wide overhead swing landing early in the animation
-    const swingT = active ? Math.min(elapsed / 160, 1) : 1;
-    const swingAngle = active ? Math.sin(swingT * Math.PI) * 1.75 : 0;
-
     ctx.save();
-    ctx.translate(px + 22, py - 4);
-    ctx.rotate(-swingAngle);
-    ctx.font = "32px sans-serif";
+    ctx.translate(s.gx, s.gy);
+    ctx.rotate(s.rotation);
+    ctx.font = `${s.size}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(currentWeapon().emoji, 0, 0);
+    ctx.fillText(s.weapon.emoji, 0, 0);
     ctx.restore();
+
+    // muzzle flash
+    if (s.elapsed >= 0 && s.elapsed < 90) {
+      const flashAlpha = 1 - s.elapsed / 90;
+      const mp = getMuzzlePoint();
+      ctx.save();
+      ctx.globalAlpha = flashAlpha;
+      const flash = ctx.createRadialGradient(mp.x, mp.y, 0, mp.x, mp.y, 24);
+      flash.addColorStop(0, "#fff6d0");
+      flash.addColorStop(1, "rgba(255,246,208,0)");
+      ctx.fillStyle = flash;
+      ctx.beginPath();
+      ctx.arc(mp.x, mp.y, 24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function updateBullets(dtMs) {
+    const dt = dtMs / 1000;
+    bullets = bullets.filter((bl) => {
+      bl.x += bl.vx * dt;
+      bl.y += bl.vy * dt;
+
+      if (bl.y < -30 || bl.y > H + 30 || bl.x < -30 || bl.x > W + 30) return false;
+
+      const b = session.building;
+      if (
+        b &&
+        bl.building === b &&
+        session.phase === "falling" &&
+        bl.x >= b.x && bl.x <= b.x + b.width &&
+        bl.y >= b.y && bl.y <= b.y + b.height
+      ) {
+        b.hp = Math.max(0, b.hp - bl.damage);
+        b.hitFlash = 6;
+        spawnHitParticles(bl.x, bl.y);
+        showFloatingText(`-${bl.damage}`, bl.x, bl.y, "#ffffff", true);
+        sfxHit();
+        if (b.hp <= 0) destroyBuilding();
+        return false;
+      }
+      return true;
+    });
+  }
+
+  function drawBullets() {
+    bullets.forEach((bl) => {
+      const angle = Math.atan2(bl.vy, bl.vx);
+      const len = 16;
+      ctx.save();
+      ctx.translate(bl.x, bl.y);
+      ctx.rotate(angle);
+      const trail = ctx.createLinearGradient(-len, 0, 0, 0);
+      trail.addColorStop(0, "rgba(255,255,255,0)");
+      trail.addColorStop(1, bl.color);
+      ctx.strokeStyle = trail;
+      ctx.lineWidth = bl.size * 0.7;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-len, 0);
+      ctx.lineTo(0, 0);
+      ctx.stroke();
+      ctx.fillStyle = "#fff8e0";
+      ctx.beginPath();
+      ctx.arc(0, 0, bl.size * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
   }
 
   function drawParticles() {
@@ -712,7 +805,8 @@
     drawBackground();
     drawGround();
     if (session.building) drawBuilding(session.building);
-    drawPlayer();
+    drawGun();
+    drawBullets();
     drawParticles();
     drawFloatingTexts();
     ctx.restore();
@@ -720,6 +814,9 @@
 
   function loop() {
     const now = performance.now();
+    const dt = lastFrameTime ? Math.min(now - lastFrameTime, 48) : 16;
+    lastFrameTime = now;
+
     if (session.phase === "falling" && session.building) {
       const b = session.building;
       const t = Math.min(1, (now - b.startTime) / b.duration);
@@ -728,6 +825,7 @@
         crashBuilding();
       }
     }
+    updateBullets(dt);
     updateParticles();
     render();
     requestAnimationFrame(loop);
