@@ -7,18 +7,18 @@
   const MAX_LIFE_LEVEL = 7;
 
   const WEAPONS = [
-    { name: "장난감 총", baseDamage: 5, baseCooldown: 420, cost: 0, tierColor: "#cfd6e0", scale: 1.0, barrels: 1, tip: "cap" },
-    { name: "리볼버", baseDamage: 12, baseCooldown: 380, cost: 150, tierColor: "#8bd17c", scale: 1.14, barrels: 1, tip: "cap" },
-    { name: "더블배럴 샷건", baseDamage: 26, baseCooldown: 420, cost: 500, tierColor: "#5cc8e0", scale: 1.28, barrels: 2, tip: "cap" },
-    { name: "기관단총", baseDamage: 55, baseCooldown: 500, cost: 1500, tierColor: "#7c8bff", scale: 1.42, barrels: 1, tip: "cap" },
-    { name: "개틀링건", baseDamage: 20, baseCooldown: 140, cost: 4000, tierColor: "#d17cff", scale: 1.56, barrels: 3, tip: "cap" },
-    { name: "로켓런처", baseDamage: 130, baseCooldown: 700, cost: 10000, tierColor: "#ff9d4d", scale: 1.7, barrels: 1, tip: "cone" },
-    { name: "발칸포", baseDamage: 260, baseCooldown: 850, cost: 25000, tierColor: "#ff6b6b", scale: 1.85, barrels: 4, tip: "cone" },
-    { name: "레이저건", baseDamage: 520, baseCooldown: 1000, cost: 60000, tierColor: "#ffd93d", scale: 2.0, barrels: 1, tip: "crystal" },
+    { name: "장난감 총", baseDamage: 5, cost: 0, tierColor: "#cfd6e0", scale: 1.0, barrels: 1, tip: "cap" },
+    { name: "리볼버", baseDamage: 12, cost: 150, tierColor: "#8bd17c", scale: 1.14, barrels: 1, tip: "cap" },
+    { name: "더블배럴 샷건", baseDamage: 26, cost: 500, tierColor: "#5cc8e0", scale: 1.28, barrels: 2, tip: "cap" },
+    { name: "기관단총", baseDamage: 55, cost: 1500, tierColor: "#7c8bff", scale: 1.42, barrels: 1, tip: "cap" },
+    { name: "개틀링건", baseDamage: 20, cost: 4000, tierColor: "#d17cff", scale: 1.56, barrels: 3, tip: "cap" },
+    { name: "로켓런처", baseDamage: 130, cost: 10000, tierColor: "#ff9d4d", scale: 1.7, barrels: 1, tip: "cone" },
+    { name: "발칸포", baseDamage: 260, cost: 25000, tierColor: "#ff6b6b", scale: 1.85, barrels: 4, tip: "cone" },
+    { name: "레이저건", baseDamage: 520, cost: 60000, tierColor: "#ffd93d", scale: 2.0, barrels: 1, tip: "crystal" },
   ];
 
   function buildingMaxHP(wave) {
-    return Math.round((30 + wave * 8) * Math.pow(1.09, wave - 1));
+    return Math.round((80 + wave * 20) * Math.pow(1.1, wave - 1));
   }
   function fallDuration(wave) {
     return Math.max(2800, 8000 - wave * 120);
@@ -28,9 +28,6 @@
   }
   function dmgUpgradeCost(level) {
     return Math.round(80 * Math.pow(1.35, level));
-  }
-  function speedUpgradeCost(level) {
-    return Math.round(100 * Math.pow(1.4, level));
   }
   function lifeUpgradeCost(level) {
     return Math.round(300 * Math.pow(1.8, level));
@@ -45,7 +42,6 @@
       gold: 0,
       weaponTier: 0,
       dmgLevel: 0,
-      speedLevel: 0,
       lifeLevel: 0,
       goldMultLevel: 0,
       bestWave: 1,
@@ -77,9 +73,6 @@
   function currentDamage() {
     return currentWeapon().baseDamage * (1 + save.dmgLevel * 0.08);
   }
-  function currentCooldown() {
-    return Math.max(60, currentWeapon().baseCooldown * Math.pow(0.96, save.speedLevel));
-  }
   function goldMultiplier() {
     return 1 + save.goldMultLevel * 0.15;
   }
@@ -94,7 +87,6 @@
     streak: 0,
     phase: "idle", // idle | falling | gameover
     building: null,
-    lastAttackTime: 0,
     hasStarted: false,
   };
 
@@ -287,10 +279,7 @@
   function attack() {
     ensureAudio();
     if (session.phase !== "falling" || !session.building) return;
-    const now = performance.now();
-    if (now - session.lastAttackTime < currentCooldown()) return;
-    session.lastAttackTime = now;
-    fireStart = now;
+    fireStart = performance.now();
 
     const b = session.building;
     const hit = getHitPoint(b);
@@ -407,7 +396,7 @@
           <div class="icon" style="color:${nw.tierColor}"><svg class="icon-svg"><use href="#icon-crosshair"></use></svg></div>
           <div class="info">
             <div class="title">무기 업그레이드: ${nw.name}</div>
-            <div class="desc">공격력 ${currentWeapon().baseDamage} → ${nw.baseDamage} / 쿨타임 ${currentWeapon().baseCooldown}ms → ${nw.baseCooldown}ms</div>
+            <div class="desc">공격력 ${currentWeapon().baseDamage} → ${nw.baseDamage}</div>
           </div>
           <button class="btn small buy-btn" data-action="buyWeapon" ${save.gold < cost ? "disabled" : ""}>${cost.toLocaleString("ko-KR")}💰</button>
         </div>
@@ -434,20 +423,6 @@
           <div class="desc">현재 공격력 ${currentDamage().toFixed(1)} → ${(currentWeapon().baseDamage * (1 + (save.dmgLevel + 1) * 0.08)).toFixed(1)} (+8%)</div>
         </div>
         <button class="btn small buy-btn" data-action="buyDamage" ${save.gold < dmgCost ? "disabled" : ""}>${dmgCost.toLocaleString("ko-KR")}💰</button>
-      </div>
-    `);
-
-    // Speed upgrade
-    const spdCost = speedUpgradeCost(save.speedLevel);
-    const nextCooldown = Math.max(60, currentWeapon().baseCooldown * Math.pow(0.96, save.speedLevel + 1));
-    items.push(`
-      <div class="shop-item">
-        <div class="icon"><svg class="icon-svg"><use href="#icon-gauge"></use></svg></div>
-        <div class="info">
-          <div class="title">공격속도 강화 (Lv.${save.speedLevel})</div>
-          <div class="desc">쿨타임 ${Math.round(currentCooldown())}ms → ${Math.round(nextCooldown)}ms</div>
-        </div>
-        <button class="btn small buy-btn" data-action="buySpeed" ${save.gold < spdCost ? "disabled" : ""}>${spdCost.toLocaleString("ko-KR")}💰</button>
       </div>
     `);
 
@@ -509,13 +484,6 @@
       if (save.gold >= cost) {
         save.gold -= cost;
         save.dmgLevel += 1;
-        sfxBuy();
-      }
-    } else if (action === "buySpeed") {
-      const cost = speedUpgradeCost(save.speedLevel);
-      if (save.gold >= cost) {
-        save.gold -= cost;
-        save.speedLevel += 1;
         sfxBuy();
       }
     } else if (action === "buyLife") {
