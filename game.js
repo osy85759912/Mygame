@@ -168,21 +168,26 @@
   let shakeTime = 0;
   let shakeMag = 0;
 
-  function spawnHitParticles(b) {
-    const cx = b.x + b.width / 2 + (Math.random() - 0.5) * b.width * 0.6;
-    const cy = b.y + b.height * (0.3 + Math.random() * 0.4);
-    for (let i = 0; i < 6; i++) {
+  function getHitPoint(b) {
+    return {
+      x: b.x + b.width / 2 + (Math.random() - 0.5) * b.width * 0.6,
+      y: b.y + b.height * (0.25 + Math.random() * 0.4),
+    };
+  }
+
+  function spawnHitParticles(x, y) {
+    for (let i = 0; i < 9; i++) {
       particles.push({
-        x: cx, y: cy,
-        vx: (Math.random() - 0.5) * 3,
-        vy: -Math.random() * 3 - 1,
-        life: 0, maxLife: 20 + Math.random() * 10,
-        size: 3 + Math.random() * 3,
+        x, y,
+        vx: (Math.random() - 0.5) * 4.5,
+        vy: -Math.random() * 4.5 - 1.5,
+        life: 0, maxLife: 16 + Math.random() * 10,
+        size: 3 + Math.random() * 3.5,
         color: "#fff3c4",
-        gravity: 0.15,
+        gravity: 0.2,
       });
     }
-    shakeTime = 4; shakeMag = 3;
+    shakeTime = 7; shakeMag = 6;
   }
 
   function spawnDebrisParticles(b, isCrash) {
@@ -207,8 +212,8 @@
     shakeMag = isCrash ? 9 : 4;
   }
 
-  function showFloatingText(text, x, y, color) {
-    floatingTexts.push({ text, x, y, color, life: 0, maxLife: 55 });
+  function showFloatingText(text, x, y, color, small) {
+    floatingTexts.push({ text, x, y, color, life: 0, maxLife: small ? 30 : 55, small: !!small });
   }
 
   function updateParticles() {
@@ -275,7 +280,9 @@
     const b = session.building;
     b.hp = Math.max(0, b.hp - dmg);
     b.hitFlash = 6;
-    spawnHitParticles(b);
+    const hit = getHitPoint(b);
+    spawnHitParticles(hit.x, hit.y);
+    showFloatingText(`-${dmg}`, hit.x, hit.y, "#ffffff", true);
     sfxHit();
 
     if (b.hp <= 0) {
@@ -520,7 +527,8 @@
   }
 
   // ---------- Rendering ----------
-  let swingStart = 0;
+  const ATTACK_ANIM_DURATION = 240;
+  let swingStart = -Infinity;
 
   function drawBackground() {
     const grad = ctx.createLinearGradient(0, 0, 0, H);
@@ -556,6 +564,8 @@
     if (frac > 0.6) color = "#8d99ae";
     else if (frac > 0.3) color = "#c9a876";
     else color = "#c97b6b";
+
+    const flashAlpha = b.hitFlash > 0 ? b.hitFlash / 6 : 0;
 
     ctx.save();
     if (b.hitFlash > 0) {
@@ -600,6 +610,11 @@
       }
     });
 
+    if (flashAlpha > 0) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.55})`;
+      ctx.fillRect(b.x, b.y, b.width, b.height);
+    }
+
     ctx.restore();
 
     // health bar
@@ -624,23 +639,44 @@
   }
 
   function drawPlayer() {
-    const px = W / 2;
-    const py = GROUND_Y + 30;
+    const now = performance.now();
+    const elapsed = now - swingStart;
+    const active = elapsed >= 0 && elapsed < ATTACK_ANIM_DURATION;
+    const landElapsed = elapsed - ATTACK_ANIM_DURATION;
+    const landing = !active && landElapsed >= 0 && landElapsed < 100;
 
+    // 0 -> 1 -> 0 hop arc while the attack animation is playing
+    const hop = active ? Math.sin(Math.min(elapsed / ATTACK_ANIM_DURATION, 1) * Math.PI) : 0;
+    const landSquash = landing ? Math.sin((landElapsed / 100) * Math.PI) * 0.22 : 0;
+    const idleBob = !active && !landing ? Math.sin(now / 480) * 2 : 0;
+
+    const jumpHeight = 42;
+    const lean = hop * 0.24;
+
+    const px = W / 2;
+    const py = GROUND_Y + 30 - hop * jumpHeight - idleBob;
+
+    // body: leap up with a forward lean, squash on landing
     ctx.save();
+    ctx.translate(px - 26, py);
+    ctx.rotate(lean);
+    ctx.scale(1 - hop * 0.05 + landSquash * 0.7, 1 + hop * 0.1 - landSquash);
     ctx.font = "40px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("🧍", px - 26, py);
+    ctx.fillText("🧍", 0, 0);
+    ctx.restore();
 
-    // weapon swing
-    const now = performance.now();
-    const progress = Math.min(1, (now - swingStart) / 150);
-    const angle = progress < 1 ? Math.sin(progress * Math.PI) * 0.9 : 0;
+    // weapon: fast, wide overhead swing landing early in the animation
+    const swingT = active ? Math.min(elapsed / 160, 1) : 1;
+    const swingAngle = active ? Math.sin(swingT * Math.PI) * 1.75 : 0;
 
+    ctx.save();
     ctx.translate(px + 22, py - 4);
-    ctx.rotate(-angle);
+    ctx.rotate(-swingAngle);
     ctx.font = "32px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.fillText(currentWeapon().emoji, 0, 0);
     ctx.restore();
   }
@@ -660,7 +696,7 @@
       const alpha = 1 - t.life / t.maxLife;
       ctx.globalAlpha = Math.max(0, alpha);
       ctx.fillStyle = t.color;
-      ctx.font = "bold 20px sans-serif";
+      ctx.font = t.small ? "bold 15px sans-serif" : "bold 20px sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(t.text, t.x, t.y);
       ctx.globalAlpha = 1;
