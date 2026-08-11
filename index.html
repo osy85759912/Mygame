@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>빌딩 브레이커</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="stat gold"><span class="stat-icon">💰</span><span id="goldValue">0</span></div>
+      <div class="stat"><span class="stat-icon">🌊</span><span id="waveValue">1</span></div>
+      <div class="stat lives" id="livesDisplay"></div>
+      <div class="stat best"><span class="stat-icon">🏆</span><span id="bestWaveValue">1</span></div>
+      <button id="muteBtn" class="icon-btn" title="소리 켜기/끄기">🔊</button>
+    </header>
+
+    <main class="game-area">
+      <canvas id="gameCanvas" width="480" height="640"></canvas>
+
+      <div class="overlay" id="startOverlay">
+        <div class="panel">
+          <h1>🏢 빌딩 브레이커</h1>
+          <p>버튼을 누르면 건물이 떨어집니다.<br>제한 시간 안에 클릭하거나 스페이스바로 부숴서 돈을 버세요!<br>다 못 부수면 생명이 줄어들어요.</p>
+          <button id="startBtn" class="btn primary">시작하기</button>
+        </div>
+      </div>
+
+      <div class="overlay hidden" id="gameOverOverlay">
+        <div class="panel">
+          <h1>💥 게임 오버</h1>
+          <p id="gameOverStats"></p>
+          <button id="restartBtn" class="btn primary">다시 시작</button>
+        </div>
+      </div>
+    </main>
+
+    <div class="controls">
+      <div class="weapon-info">
+        <span id="weaponEmoji" class="weapon-emoji">👊</span>
+        <div>
+          <div id="weaponName">맨주먹</div>
+          <div class="sub">공격력 <span id="weaponDamage">5</span></div>
+        </div>
+      </div>
+      <button id="nextBtn" class="btn primary hidden">다음 건물</button>
+      <button id="shopBtn" class="btn">🛒 상점</button>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="shopModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🛒 상점</h2>
+        <button id="closeShopBtn" class="btn small">닫기</button>
+      </div>
+      <div class="gold-display">💰 보유 골드: <span id="shopGold">0</span></div>
+      <div class="shop-list" id="shopList"></div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
