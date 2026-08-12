@@ -36,7 +36,7 @@
     return Math.max(2800, 8000 - wave * 120);
   }
   function rewardForWave(wave) {
-    return Math.round(buildingMaxHP(wave) * 0.9);
+    return Math.round(buildingMaxHP(wave) * 0.35);
   }
   function dmgUpgradeCost(level) {
     return Math.round(80 * Math.pow(1.35, level));
