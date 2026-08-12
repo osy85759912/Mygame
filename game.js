@@ -78,13 +78,18 @@
     return Math.round(250 * Math.pow(1.5, level));
   }
   function turretUpgradeCost(level) {
-    return Math.round(2000 * Math.pow(1.6, level));
+    return Math.round(600 * Math.pow(1.45, level));
   }
   function turretDamageFraction(level) {
-    return 0.15 + (level - 1) * 0.05;
+    return 0.25 + (level - 1) * 0.08;
   }
   function turretInterval(level) {
     return Math.max(300, 1000 - (level - 1) * 100);
+  }
+  const MAX_TURRET_COUNT = 4;
+  const TURRET_OFFSETS = [-95, 95, -150, 150];
+  function turretCountUpgradeCost(count) {
+    return Math.round(2500 * Math.pow(1.9, count));
   }
 
   // ---------- Save data ----------
@@ -96,6 +101,7 @@
       lifeLevel: 0,
       goldMultLevel: 0,
       turretLevel: 0,
+      turretCount: 0,
       bestWave: 1,
     };
   }
@@ -103,7 +109,9 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return defaultSave();
-      return Object.assign(defaultSave(), JSON.parse(raw));
+      const merged = Object.assign(defaultSave(), JSON.parse(raw));
+      if (merged.turretLevel > 0 && merged.turretCount < 1) merged.turretCount = 1;
+      return merged;
     } catch (e) {
       return defaultSave();
     }
@@ -521,24 +529,26 @@
     turretFireStart = performance.now();
 
     const b = session.building;
-    const hit = getHitPoint(b);
-    const muzzle = getTurretMuzzlePoint();
-    const dx = hit.x - muzzle.x;
-    const dy = hit.y - muzzle.y;
-    const dist = Math.max(1, Math.hypot(dx, dy));
-    const speed = 1500;
     const damage = Math.max(1, Math.round(currentDamage() * turretDamageFraction(save.turretLevel)));
-    bullets.push({
-      x: muzzle.x,
-      y: muzzle.y,
-      vx: (dx / dist) * speed,
-      vy: (dy / dist) * speed,
-      damage,
-      isTurret: true,
-      building: b,
-      color: "#ffb347",
-      size: 6,
-    });
+    const speed = 1500;
+    for (let i = 0; i < save.turretCount; i++) {
+      const hit = getHitPoint(b);
+      const muzzle = getTurretMuzzlePoint(i);
+      const dx = hit.x - muzzle.x;
+      const dy = hit.y - muzzle.y;
+      const dist = Math.max(1, Math.hypot(dx, dy));
+      bullets.push({
+        x: muzzle.x,
+        y: muzzle.y,
+        vx: (dx / dist) * speed,
+        vy: (dy / dist) * speed,
+        damage,
+        isTurret: true,
+        building: b,
+        color: "#ffb347",
+        size: 6,
+      });
+    }
     sfxTurret();
   }
 
@@ -713,7 +723,7 @@
     const turretNextFrac = turretDamageFraction(turretNextLevel);
     const turretNextInterval = turretInterval(turretNextLevel);
     const turretOwnedDesc = save.turretLevel > 0
-      ? `${(turretInterval(save.turretLevel) / 1000).toFixed(1)}초마다 자동 발사 · 공격력 ${(turretDamageFraction(save.turretLevel) * 100).toFixed(0)}%`
+      ? `${save.turretCount}기 보유 · ${(turretInterval(save.turretLevel) / 1000).toFixed(1)}초마다 자동 발사 · 공격력 ${(turretDamageFraction(save.turretLevel) * 100).toFixed(0)}%`
       : "일정 주기로 자동으로 미사일을 발사하는 헬퍼 터렛을 설치합니다.";
     items.push(`
       <div class="shop-item">
@@ -725,6 +735,33 @@
         <button class="btn small buy-btn" data-action="buyTurret" ${save.gold < turretCost ? "disabled" : ""}>${turretCost.toLocaleString("ko-KR")}💰</button>
       </div>
     `);
+
+    // Turret count (only once the first turret is installed)
+    if (save.turretLevel > 0) {
+      if (save.turretCount < MAX_TURRET_COUNT) {
+        const countCost = turretCountUpgradeCost(save.turretCount);
+        items.push(`
+          <div class="shop-item">
+            <div class="icon"><svg class="icon-svg"><use href="#icon-turret"></use></svg></div>
+            <div class="info">
+              <div class="title">터렛 개수 증가 (현재 ${save.turretCount}기)</div>
+              <div class="desc">터렛을 한 대 더 배치해 동시에 발사합니다. ${save.turretCount}기 → ${save.turretCount + 1}기</div>
+            </div>
+            <button class="btn small buy-btn" data-action="buyTurretCount" ${save.gold < countCost ? "disabled" : ""}>${countCost.toLocaleString("ko-KR")}💰</button>
+          </div>
+        `);
+      } else {
+        items.push(`
+          <div class="shop-item">
+            <div class="icon"><svg class="icon-svg"><use href="#icon-turret"></use></svg></div>
+            <div class="info">
+              <div class="title">터렛 개수: ${save.turretCount}기 (최대치)</div>
+              <div class="desc">더 이상 늘릴 수 없습니다.</div>
+            </div>
+          </div>
+        `);
+      }
+    }
 
     shopList.innerHTML = items.join("");
   }
@@ -768,7 +805,15 @@
       if (save.gold >= cost) {
         save.gold -= cost;
         save.turretLevel += 1;
+        if (save.turretCount < 1) save.turretCount = 1;
         if (turretCooldownRemaining <= 0) turretCooldownRemaining = turretInterval(save.turretLevel);
+        sfxBuy();
+      }
+    } else if (action === "buyTurretCount") {
+      const cost = turretCountUpgradeCost(save.turretCount);
+      if (save.gold >= cost && save.turretCount < MAX_TURRET_COUNT) {
+        save.gold -= cost;
+        save.turretCount += 1;
         sfxBuy();
       }
     }
@@ -1285,28 +1330,32 @@
     }
   }
 
-  // Small helper turret mounted beside the main cannon; fires on its own timer.
-  function getTurretState(now) {
+  // Small helper turrets mounted beside the main cannon; fire together on a shared timer.
+  function getTurretState(now, index) {
     const elapsed = now - turretFireStart;
     const active = elapsed >= 0 && elapsed < 120;
     const recoil = active ? Math.sin(Math.min(elapsed / 120, 1) * Math.PI) : 0;
-    const idleBob = active ? 0 : Math.sin(now / 500) * 1.5;
+    const idleBob = active ? 0 : Math.sin(now / 500 + index * 1.3) * 1.5;
     const size = 30;
-    const gx = W / 2 - 95;
+    const gx = W / 2 + TURRET_OFFSETS[index];
     const gy = GROUND_Y + 26 - idleBob;
     const barrelH = size * 0.75;
     const kick = recoil * size * 0.18;
     return { elapsed, active, recoil, size, gx, gy, barrelH, kick };
   }
 
-  function getTurretMuzzlePoint() {
-    const s = getTurretState(performance.now());
+  function getTurretMuzzlePoint(index) {
+    const s = getTurretState(performance.now(), index);
     return { x: s.gx, y: s.gy + s.kick - s.barrelH };
   }
 
   function drawTurret() {
-    if (!save.turretLevel || save.turretLevel <= 0) return;
-    const s = getTurretState(performance.now());
+    if (!save.turretCount || save.turretCount <= 0) return;
+    for (let i = 0; i < save.turretCount; i++) drawSingleTurret(i);
+  }
+
+  function drawSingleTurret(index) {
+    const s = getTurretState(performance.now(), index);
     const { gx, gy, size, kick, barrelH } = s;
 
     ctx.save();
@@ -1345,7 +1394,7 @@
 
     if (s.elapsed >= 0 && s.elapsed < 70) {
       const flashAlpha = 1 - s.elapsed / 70;
-      const mp = getTurretMuzzlePoint();
+      const mp = getTurretMuzzlePoint(index);
       ctx.save();
       ctx.globalAlpha = flashAlpha;
       const flash = ctx.createRadialGradient(mp.x, mp.y, 0, mp.x, mp.y, 12);
