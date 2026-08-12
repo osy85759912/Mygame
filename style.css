@@ -281,14 +281,29 @@ body {
 }
 
 .guard-btn {
-  background: #1c3a42;
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 9px;
+  background: rgba(20, 41, 47, 0.82);
+  backdrop-filter: blur(2px);
   border-color: #2f5c66;
   color: #bdf0ff;
-  box-shadow: 0 3px 0 #12262b;
+  box-shadow: 0 3px 0 rgba(18, 38, 43, 0.82);
   white-space: nowrap;
 }
 .guard-btn:not(:disabled):hover {
   border-color: #5cc8e0;
+}
+.guard-btn:active:not(:disabled) {
+  transform: translateY(calc(-50% + 2px));
+}
+.guard-btn .guard-label {
+  font-size: 10px;
 }
 
 .controls {

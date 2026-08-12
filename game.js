@@ -77,6 +77,15 @@
   function goldMultUpgradeCost(level) {
     return Math.round(250 * Math.pow(1.5, level));
   }
+  function turretUpgradeCost(level) {
+    return Math.round(2000 * Math.pow(1.6, level));
+  }
+  function turretDamageFraction(level) {
+    return 0.15 + (level - 1) * 0.05;
+  }
+  function turretInterval(level) {
+    return Math.max(1200, 2600 - (level - 1) * 150);
+  }
 
   // ---------- Save data ----------
   function defaultSave() {
@@ -86,6 +95,7 @@
       dmgLevel: 0,
       lifeLevel: 0,
       goldMultLevel: 0,
+      turretLevel: 0,
       bestWave: 1,
     };
   }
@@ -221,6 +231,21 @@
     gain.connect(audioCtx.destination);
     osc.start(now);
     osc.stop(now + 0.22);
+  }
+  function sfxTurret() {
+    if (muted || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sawtooth";
+    const now = audioCtx.currentTime;
+    osc.frequency.setValueAtTime(700, now);
+    osc.frequency.exponentialRampToValueAtTime(220, now + 0.07);
+    gain.gain.setValueAtTime(0.06, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.08);
   }
 
   muteBtn.addEventListener("click", () => {
@@ -488,6 +513,35 @@
     sfxGuard();
   }
 
+  let turretCooldownRemaining = 0;
+  let turretFireStart = -Infinity;
+
+  function fireTurret() {
+    if (session.phase !== "falling" || !session.building) return;
+    turretFireStart = performance.now();
+
+    const b = session.building;
+    const hit = getHitPoint(b);
+    const muzzle = getTurretMuzzlePoint();
+    const dx = hit.x - muzzle.x;
+    const dy = hit.y - muzzle.y;
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    const speed = 1500;
+    const damage = Math.max(1, Math.round(currentDamage() * turretDamageFraction(save.turretLevel)));
+    bullets.push({
+      x: muzzle.x,
+      y: muzzle.y,
+      vx: (dx / dist) * speed,
+      vy: (dy / dist) * speed,
+      damage,
+      isTurret: true,
+      building: b,
+      color: "#ffb347",
+      size: 6,
+    });
+    sfxTurret();
+  }
+
   function destroyBuilding() {
     const b = session.building;
     session.streak += 1;
@@ -653,6 +707,25 @@
       </div>
     `);
 
+    // Auto turret helper
+    const turretCost = turretUpgradeCost(save.turretLevel);
+    const turretNextLevel = save.turretLevel + 1;
+    const turretNextFrac = turretDamageFraction(turretNextLevel);
+    const turretNextInterval = turretInterval(turretNextLevel);
+    const turretOwnedDesc = save.turretLevel > 0
+      ? `${(turretInterval(save.turretLevel) / 1000).toFixed(1)}초마다 자동 발사 · 공격력 ${(turretDamageFraction(save.turretLevel) * 100).toFixed(0)}%`
+      : "일정 주기로 자동으로 미사일을 발사하는 헬퍼 터렛을 설치합니다.";
+    items.push(`
+      <div class="shop-item">
+        <div class="icon"><svg class="icon-svg"><use href="#icon-turret"></use></svg></div>
+        <div class="info">
+          <div class="title">${save.turretLevel > 0 ? `자동 터렛 강화 (Lv.${save.turretLevel})` : "자동 터렛 설치"}</div>
+          <div class="desc">${turretOwnedDesc} → ${(turretNextInterval / 1000).toFixed(1)}초마다 · 공격력 ${(turretNextFrac * 100).toFixed(0)}%</div>
+        </div>
+        <button class="btn small buy-btn" data-action="buyTurret" ${save.gold < turretCost ? "disabled" : ""}>${turretCost.toLocaleString("ko-KR")}💰</button>
+      </div>
+    `);
+
     shopList.innerHTML = items.join("");
   }
 
@@ -688,6 +761,14 @@
       if (save.gold >= cost) {
         save.gold -= cost;
         save.goldMultLevel += 1;
+        sfxBuy();
+      }
+    } else if (action === "buyTurret") {
+      const cost = turretUpgradeCost(save.turretLevel);
+      if (save.gold >= cost) {
+        save.gold -= cost;
+        save.turretLevel += 1;
+        if (turretCooldownRemaining <= 0) turretCooldownRemaining = turretInterval(save.turretLevel);
         sfxBuy();
       }
     }
@@ -1204,6 +1285,80 @@
     }
   }
 
+  // Small helper turret mounted beside the main cannon; fires on its own timer.
+  function getTurretState(now) {
+    const elapsed = now - turretFireStart;
+    const active = elapsed >= 0 && elapsed < 120;
+    const recoil = active ? Math.sin(Math.min(elapsed / 120, 1) * Math.PI) : 0;
+    const idleBob = active ? 0 : Math.sin(now / 500) * 1.5;
+    const size = 30;
+    const gx = W / 2 - 95;
+    const gy = GROUND_Y + 26 - idleBob;
+    const barrelH = size * 0.75;
+    const kick = recoil * size * 0.18;
+    return { elapsed, active, recoil, size, gx, gy, barrelH, kick };
+  }
+
+  function getTurretMuzzlePoint() {
+    const s = getTurretState(performance.now());
+    return { x: s.gx, y: s.gy + s.kick - s.barrelH };
+  }
+
+  function drawTurret() {
+    if (!save.turretLevel || save.turretLevel <= 0) return;
+    const s = getTurretState(performance.now());
+    const { gx, gy, size, kick, barrelH } = s;
+
+    ctx.save();
+    ctx.globalAlpha = 0.24;
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(gx, GROUND_Y + 30, size * 0.55, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(gx, gy);
+
+    const mountW = size * 0.9;
+    const mountH = size * 0.4;
+    ctx.fillStyle = "#3f4145";
+    roundRectPath(ctx, -mountW / 2, 0, mountW, mountH, 4);
+    ctx.fill();
+    ctx.strokeStyle = "#141517";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    const bw = size * 0.28;
+    roundRectPath(ctx, -bw / 2, kick - barrelH, bw, barrelH, bw * 0.3);
+    const grad = ctx.createLinearGradient(-bw / 2, 0, bw / 2, 0);
+    grad.addColorStop(0, "#8a5a2b");
+    grad.addColorStop(0.5, "#ffb347");
+    grad.addColorStop(1, "#8a5a2b");
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = "#141517";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.restore();
+
+    if (s.elapsed >= 0 && s.elapsed < 70) {
+      const flashAlpha = 1 - s.elapsed / 70;
+      const mp = getTurretMuzzlePoint();
+      ctx.save();
+      ctx.globalAlpha = flashAlpha;
+      const flash = ctx.createRadialGradient(mp.x, mp.y, 0, mp.x, mp.y, 12);
+      flash.addColorStop(0, "#fff0d0");
+      flash.addColorStop(1, "rgba(255,240,208,0)");
+      ctx.fillStyle = flash;
+      ctx.beginPath();
+      ctx.arc(mp.x, mp.y, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
   function updateBullets(dtMs) {
     const dt = dtMs / 1000;
     bullets = bullets.filter((bl) => {
@@ -1244,6 +1399,32 @@
 
   function drawBullets() {
     bullets.forEach((bl) => {
+      if (bl.isTurret) {
+        const angle = Math.atan2(bl.vy, bl.vx);
+        ctx.save();
+        ctx.translate(bl.x, bl.y);
+        ctx.rotate(angle);
+        ctx.fillStyle = "rgba(255,178,71,0.5)";
+        ctx.beginPath();
+        ctx.moveTo(-3, 0);
+        ctx.lineTo(-11, -2.8);
+        ctx.lineTo(-11, 2.8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#ffb347";
+        ctx.beginPath();
+        ctx.moveTo(8, 0);
+        ctx.lineTo(-5, -3.5);
+        ctx.lineTo(-2, 0);
+        ctx.lineTo(-5, 3.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "#8a5a2b";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
       if (bl.isGuard) {
         ctx.save();
         ctx.translate(bl.x, bl.y);
@@ -1318,6 +1499,7 @@
     drawGround();
     if (session.building) drawBuilding(session.building);
     drawGun();
+    drawTurret();
     drawBullets();
     drawShockwaves();
     drawParticles();
@@ -1349,6 +1531,13 @@
     }
     if (active && guardCooldownRemaining > 0) {
       guardCooldownRemaining = Math.max(0, guardCooldownRemaining - dt);
+    }
+    if (active && save.turretLevel > 0) {
+      turretCooldownRemaining -= dt;
+      if (turretCooldownRemaining <= 0) {
+        fireTurret();
+        turretCooldownRemaining = turretInterval(save.turretLevel);
+      }
     }
     updateBullets(dt);
     updateParticles();
