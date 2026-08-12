@@ -51,6 +51,10 @@
         <path d="M2.5 14.5L7.5 9.5L11 12.5L17.5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M13 5h4.5v4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
       </symbol>
+      <symbol id="icon-shield" viewBox="0 0 20 20">
+        <path d="M10 2L16.3 4.4V9.3C16.3 13.4 13.7 16.8 10 18C6.3 16.8 3.7 13.4 3.7 9.3V4.4L10 2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M7 9.6L9.1 11.7L13.2 7.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
     </defs>
   </svg>
 
@@ -101,11 +105,12 @@
           <div class="sub">공격력 <span id="weaponDamage">5</span></div>
         </div>
       </div>
+      <button id="guardBtn" class="btn guard-btn" disabled><svg class="icon-svg"><use href="#icon-shield"></use></svg><span class="guard-label">방어</span></button>
       <button id="nextBtn" class="btn primary hidden">다음 건물</button>
       <button id="shopBtn" class="btn"><svg class="icon-svg"><use href="#icon-wrench"></use></svg>상점</button>
     </div>
 
-    <div class="footer-note">클릭 / 스페이스바로 발사 · 진행 상황은 이 브라우저에 자동 저장됩니다</div>
+    <div class="footer-note">클릭 / 스페이스바로 발사 · Shift 또는 방어 버튼으로 건물을 밀어올리기 · 진행 상황은 이 브라우저에 자동 저장됩니다</div>
   </div>
 
   <div class="modal hidden" id="shopModal">

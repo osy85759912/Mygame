@@ -17,6 +17,18 @@
     { name: "레이저건", baseDamage: 520, cost: 60000, tierColor: "#ffd93d", scale: 2.0, barrels: 1, tip: "crystal" },
   ];
 
+  const BUILDING_TIERS = [
+    { name: "표준", base: "#9aa7b8", light: "#c7d1de", dark: "#69768a", trim: "#e9e4d4", window: "#fff2ba" },
+    { name: "벽돌", base: "#b98a63", light: "#d8ab80", dark: "#84603f", trim: "#5c4633", window: "#ffe6a0" },
+    { name: "철근콘크리트", base: "#82898d", light: "#a7aeb2", dark: "#54595c", trim: "#f7b500", window: "#bfe9ff" },
+    { name: "중장갑", base: "#5b6a5d", light: "#7d8f7f", dark: "#343f36", trim: "#c1503a", window: "#d6ffae" },
+    { name: "요새", base: "#362b2f", light: "#584750", dark: "#1c1518", trim: "#ff4433", window: "#ffb347" },
+  ];
+
+  function buildingTier(wave) {
+    return Math.min(BUILDING_TIERS.length - 1, Math.floor((wave - 1) / 4));
+  }
+
   function buildingMaxHP(wave) {
     return Math.round((80 + wave * 20) * Math.pow(1.1, wave - 1));
   }
@@ -105,6 +117,8 @@
   const weaponDamageEl = document.getElementById("weaponDamage");
   const nextBtn = document.getElementById("nextBtn");
   const shopBtn = document.getElementById("shopBtn");
+  const guardBtn = document.getElementById("guardBtn");
+  const guardLabelEl = guardBtn.querySelector(".guard-label");
   const startOverlay = document.getElementById("startOverlay");
   const startBtn = document.getElementById("startBtn");
   const gameOverOverlay = document.getElementById("gameOverOverlay");
@@ -163,6 +177,21 @@
   }
   function sfxCrash() { playTone(90, 0.4, "sawtooth", 0.1); }
   function sfxBuy() { playTone(520, 0.12, "sine", 0.06); }
+  function sfxGuard() {
+    if (muted || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    const now = audioCtx.currentTime;
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.linearRampToValueAtTime(620, now + 0.18);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.22);
+  }
 
   muteBtn.addEventListener("click", () => {
     muted = !muted;
@@ -196,6 +225,22 @@
       });
     }
     shakeTime = 7; shakeMag = 6;
+  }
+
+  function spawnGuardParticles(x, y) {
+    for (let i = 0; i < 14; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 2 + Math.random() * 4;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 2,
+        life: 0, maxLife: 22 + Math.random() * 12,
+        size: 3 + Math.random() * 3,
+        color: "#bdf0ff",
+        gravity: 0.1,
+      });
+    }
   }
 
   function spawnDebrisParticles(b, isCrash) {
@@ -244,18 +289,39 @@
   function spawnBuilding() {
     const wave = session.wave;
     const maxHp = buildingMaxHP(wave);
-    const height = 150 + Math.floor(Math.random() * 60);
-    const width = 120 + Math.floor(Math.random() * 40);
+    const tier = buildingTier(wave);
+    const height = 160 + Math.floor(Math.random() * 70);
+    const width = 120 + Math.floor(Math.random() * 44);
+
     const crackSeeds = [];
-    for (let i = 0; i < 10; i++) {
-      crackSeeds.push({
-        threshold: Math.random(),
-        x1: Math.random(),
-        y1: Math.random() * 0.5,
-        x2: Math.random(),
-        y2: 0.5 + Math.random() * 0.5,
-      });
+    for (let i = 0; i < 9; i++) {
+      let cx = Math.random();
+      let cy = Math.random() * 0.35;
+      const points = [{ x: cx, y: cy }];
+      const segs = 3 + Math.floor(Math.random() * 2);
+      for (let s = 0; s < segs; s++) {
+        cx = Math.min(1, Math.max(0, cx + (Math.random() - 0.5) * 0.32));
+        cy = Math.min(1, Math.max(0, cy + 0.55 / segs + (Math.random() - 0.4) * 0.12));
+        points.push({ x: cx, y: cy });
+      }
+      crackSeeds.push({ threshold: 0.15 + Math.random() * 0.8, points });
     }
+
+    const cellSize = 28;
+    const cols = Math.max(2, Math.floor(width / cellSize));
+    const rows = Math.max(2, Math.floor(height / cellSize));
+    const windows = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        windows.push({
+          row: r,
+          col: c,
+          lit: Math.random() > 0.3,
+          breakThreshold: 0.3 + Math.random() * 0.6,
+        });
+      }
+    }
+
     session.building = {
       x: W / 2 - width / 2,
       width, height,
@@ -266,8 +332,9 @@
       targetY: GROUND_Y - height,
       y: -height,
       hitFlash: 0,
+      tier,
+      cols, rows, windows,
       crackSeeds,
-      windowSeed: Math.random(),
     };
     session.phase = "falling";
     session.hasStarted = true;
@@ -299,6 +366,39 @@
       size: 3.5 + save.weaponTier * 0.6,
     });
     sfxShoot();
+  }
+
+  const GUARD_COOLDOWN = 5000;
+  const GUARD_PUSHBACK = 1600;
+  let guardCooldownEnd = 0;
+
+  function useGuard() {
+    ensureAudio();
+    if (session.phase !== "falling" || !session.building) return;
+    const now = performance.now();
+    if (now < guardCooldownEnd) return;
+    guardCooldownEnd = now + GUARD_COOLDOWN;
+    fireStart = now;
+
+    const b = session.building;
+    const hit = getHitPoint(b);
+    const muzzle = getMuzzlePoint();
+    const dx = hit.x - muzzle.x;
+    const dy = hit.y - muzzle.y;
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    const speed = 1400;
+    bullets.push({
+      x: muzzle.x,
+      y: muzzle.y,
+      vx: (dx / dist) * speed,
+      vy: (dy / dist) * speed,
+      damage: 0,
+      isGuard: true,
+      building: b,
+      color: "#5cc8e0",
+      size: 9,
+    });
+    sfxGuard();
   }
 
   function destroyBuilding() {
@@ -558,13 +658,39 @@
     ctx.fillRect(0, GROUND_Y + 40, W, 6);
   }
 
+  function drawRoof(b, palette) {
+    const rx = b.x, ry = b.y, rw = b.width, t = b.tier;
+    ctx.fillStyle = shade(palette.dark, -8);
+    ctx.fillRect(rx - 4, ry - 7, rw + 8, 7);
+    ctx.fillStyle = palette.trim;
+    ctx.fillRect(rx - 4, ry - 7, rw + 8, 2);
+
+    if (t === 2) {
+      ctx.fillStyle = shade(palette.dark, -18);
+      [0.22, 0.52, 0.78].forEach((f) => ctx.fillRect(rx + rw * f - 4, ry - 15, 8, 9));
+    } else if (t >= 3) {
+      ctx.strokeStyle = "#1c1d1f";
+      ctx.lineWidth = 2.4;
+      [0.18, 0.5, 0.82].forEach((f) => {
+        const sx = rx + rw * f;
+        ctx.beginPath();
+        ctx.moveTo(sx, ry - 7);
+        ctx.lineTo(sx, ry - (t >= 4 ? 22 : 15));
+        ctx.stroke();
+        if (t >= 4) {
+          ctx.fillStyle = "rgba(255,90,60,0.9)";
+          ctx.beginPath();
+          ctx.arc(sx, ry - 23, 2.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+    }
+  }
+
   function drawBuilding(b) {
     const frac = b.hp / b.maxHp;
-    let color;
-    if (frac > 0.6) color = "#8d99ae";
-    else if (frac > 0.3) color = "#c9a876";
-    else color = "#c97b6b";
-
+    const damage = 1 - frac;
+    const palette = BUILDING_TIERS[b.tier];
     const flashAlpha = b.hitFlash > 0 ? b.hitFlash / 6 : 0;
 
     ctx.save();
@@ -574,38 +700,109 @@
       b.hitFlash--;
     }
 
-    // building body
-    ctx.fillStyle = color;
+    // ground contact shadow
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(b.x + b.width / 2, GROUND_Y + 5, b.width * 0.52, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // facade: vertical gradient darkens as it takes damage
+    const darken = -damage * 22;
+    const bodyGrad = ctx.createLinearGradient(b.x, b.y, b.x, b.y + b.height);
+    bodyGrad.addColorStop(0, shade(palette.light, darken));
+    bodyGrad.addColorStop(1, shade(palette.dark, darken));
+    ctx.fillStyle = bodyGrad;
     ctx.fillRect(b.x, b.y, b.width, b.height);
-    ctx.strokeStyle = "rgba(0,0,0,0.25)";
+
+    // pseudo-3D side shading
+    ctx.fillStyle = "rgba(0,0,0,0.16)";
+    ctx.fillRect(b.x + b.width * 0.82, b.y, b.width * 0.18, b.height);
+    ctx.fillStyle = "rgba(255,255,255,0.1)";
+    ctx.fillRect(b.x, b.y, b.width * 0.08, b.height);
+
+    ctx.strokeStyle = "rgba(0,0,0,0.3)";
     ctx.lineWidth = 2;
     ctx.strokeRect(b.x, b.y, b.width, b.height);
 
-    // windows
-    const cols = Math.max(2, Math.floor(b.width / 34));
-    const rows = Math.max(2, Math.floor(b.height / 34));
-    const padX = (b.width - cols * 22) / (cols + 1);
-    const padY = (b.height - rows * 22) / (rows + 1);
-    ctx.fillStyle = "rgba(255, 244, 190, 0.85)";
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const wx = b.x + padX + c * (22 + padX);
-        const wy = b.y + padY + r * (22 + padY);
-        const lit = ((c + r + Math.floor(b.windowSeed * 10)) % 3) !== 0;
-        ctx.fillStyle = lit ? "rgba(255, 244, 190, 0.85)" : "rgba(60, 60, 80, 0.5)";
-        ctx.fillRect(wx, wy, 16, 16);
+    // reinforcement bands (tier 2+)
+    if (b.tier >= 2) {
+      const bandCount = b.tier;
+      ctx.fillStyle = shade(palette.dark, -18);
+      for (let i = 1; i <= bandCount; i++) {
+        const by = b.y + (b.height / (bandCount + 1)) * i;
+        ctx.fillRect(b.x, by - 2, b.width, 4);
       }
     }
 
-    // cracks
-    const damage = 1 - frac;
-    ctx.strokeStyle = "rgba(20,20,20,0.55)";
+    // windows
+    const cellSize = b.width / b.cols;
+    const winSize = Math.min(18, cellSize * 0.6);
+    const padX = (b.width - b.cols * winSize) / (b.cols + 1);
+    const padY = (b.height - b.rows * winSize) / (b.rows + 1);
+    b.windows.forEach((w) => {
+      const wx = b.x + padX + w.col * (winSize + padX);
+      const wy = b.y + padY + w.row * (winSize + padY);
+      const broken = damage >= w.breakThreshold;
+      if (broken) {
+        ctx.fillStyle = "rgba(15,14,18,0.6)";
+        ctx.fillRect(wx, wy, winSize, winSize);
+        ctx.strokeStyle = "rgba(0,0,0,0.55)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(wx, wy);
+        ctx.lineTo(wx + winSize, wy + winSize);
+        ctx.moveTo(wx + winSize, wy);
+        ctx.lineTo(wx, wy + winSize);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = w.lit ? palette.window : "rgba(35,35,48,0.55)";
+        ctx.fillRect(wx, wy, winSize, winSize);
+        ctx.strokeStyle = "rgba(0,0,0,0.28)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(wx, wy, winSize, winSize);
+      }
+    });
+
+    // diagonal cross-brace truss (tier 3+)
+    if (b.tier >= 3) {
+      ctx.strokeStyle = "rgba(15,15,17,0.45)";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y);
+      ctx.lineTo(b.x + b.width, b.y + b.height);
+      ctx.moveTo(b.x + b.width, b.y);
+      ctx.lineTo(b.x, b.y + b.height);
+      ctx.stroke();
+    }
+
+    // hazard trim at the base (tier 4)
+    if (b.tier >= 4) {
+      const stripeH = 9;
+      const stripeY = b.y + b.height - stripeH;
+      for (let sx = 0; sx < b.width; sx += 14) {
+        ctx.fillStyle = Math.floor(sx / 14) % 2 === 0 ? palette.trim : "#141517";
+        ctx.fillRect(b.x + sx, stripeY, Math.min(14, b.width - sx), stripeH);
+      }
+    }
+
+    // roof
+    drawRoof(b, palette);
+
+    // jagged cracks
+    ctx.strokeStyle = "rgba(12,12,14,0.6)";
     ctx.lineWidth = 2;
     b.crackSeeds.forEach((c) => {
       if (damage >= c.threshold) {
         ctx.beginPath();
-        ctx.moveTo(b.x + c.x1 * b.width, b.y + c.y1 * b.height);
-        ctx.lineTo(b.x + c.x2 * b.width, b.y + c.y2 * b.height);
+        c.points.forEach((p, i) => {
+          const px = b.x + p.x * b.width;
+          const py = b.y + p.y * b.height;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        });
         ctx.stroke();
       }
     });
@@ -620,7 +817,7 @@
     // health bar
     const barW = b.width;
     const barX = b.x;
-    const barY = b.y - 16;
+    const barY = b.y - 18;
     ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.fillRect(barX, barY, barW, 8);
     ctx.fillStyle = frac > 0.5 ? "#8bd17c" : frac > 0.25 ? "#ffd93d" : "#ff6b6b";
@@ -631,7 +828,7 @@
 
     // fall timer bar (top of screen)
     const elapsed = performance.now() - b.startTime;
-    const timeFrac = Math.max(0, 1 - elapsed / b.duration);
+    const timeFrac = Math.min(1, Math.max(0, 1 - elapsed / b.duration));
     ctx.fillStyle = "rgba(0,0,0,0.25)";
     ctx.fillRect(20, 14, W - 40, 6);
     ctx.fillStyle = "#ff9f45";
@@ -812,12 +1009,22 @@
         bl.x >= b.x && bl.x <= b.x + b.width &&
         bl.y >= b.y && bl.y <= b.y + b.height
       ) {
-        b.hp = Math.max(0, b.hp - bl.damage);
-        b.hitFlash = 6;
-        spawnHitParticles(bl.x, bl.y);
-        showFloatingText(`-${bl.damage}`, bl.x, bl.y, "#ffffff", true);
-        sfxHit();
-        if (b.hp <= 0) destroyBuilding();
+        if (bl.isGuard) {
+          b.startTime += GUARD_PUSHBACK;
+          b.hitFlash = 6;
+          spawnGuardParticles(bl.x, bl.y);
+          showFloatingText("방어!", bl.x, bl.y, "#5cc8e0", true);
+          sfxHit();
+          shakeTime = Math.max(shakeTime, 10);
+          shakeMag = Math.max(shakeMag, 7);
+        } else {
+          b.hp = Math.max(0, b.hp - bl.damage);
+          b.hitFlash = 6;
+          spawnHitParticles(bl.x, bl.y);
+          showFloatingText(`-${bl.damage}`, bl.x, bl.y, "#ffffff", true);
+          sfxHit();
+          if (b.hp <= 0) destroyBuilding();
+        }
         return false;
       }
       return true;
@@ -826,6 +1033,25 @@
 
   function drawBullets() {
     bullets.forEach((bl) => {
+      if (bl.isGuard) {
+        ctx.save();
+        ctx.translate(bl.x, bl.y);
+        const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, bl.size * 2.4);
+        glow.addColorStop(0, "#eafbff");
+        glow.addColorStop(0.55, bl.color);
+        glow.addColorStop(1, "rgba(92,200,224,0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(0, 0, bl.size * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#eafbff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, bl.size, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
       const angle = Math.atan2(bl.vy, bl.vx);
       const len = 16;
       ctx.save();
@@ -894,16 +1120,30 @@
 
     if (session.phase === "falling" && session.building) {
       const b = session.building;
-      const t = Math.min(1, (now - b.startTime) / b.duration);
-      b.y = b.startY + (b.targetY - b.startY) * t;
+      const t = Math.min(1, Math.max(0, (now - b.startTime) / b.duration));
+      const eased = t * t; // gravity-like acceleration: slow start, fast finish
+      b.y = b.startY + (b.targetY - b.startY) * eased;
       if (t >= 1) {
         crashBuilding();
       }
     }
     updateBullets(dt);
     updateParticles();
+    updateGuardButton(now);
     render();
     requestAnimationFrame(loop);
+  }
+
+  function updateGuardButton(now) {
+    const remaining = guardCooldownEnd - now;
+    const usable = session.phase === "falling" && !!session.building;
+    if (remaining > 0) {
+      guardBtn.disabled = true;
+      guardLabelEl.textContent = `방어 (${Math.ceil(remaining / 1000)})`;
+    } else {
+      guardBtn.disabled = !usable;
+      guardLabelEl.textContent = "방어";
+    }
   }
 
   // ---------- Input ----------
@@ -924,8 +1164,13 @@
       } else if (session.phase === "idle" && !session.hasStarted) {
         spawnBuilding();
       }
+    } else if (e.code === "ShiftLeft" || e.code === "ShiftRight") {
+      e.preventDefault();
+      useGuard();
     }
   });
+
+  guardBtn.addEventListener("click", useGuard);
 
   startBtn.addEventListener("click", () => {
     ensureAudio();
