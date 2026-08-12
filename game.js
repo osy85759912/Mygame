@@ -7,14 +7,36 @@
   const MAX_LIFE_LEVEL = 7;
 
   const WEAPONS = [
-    { name: "장난감 총", baseDamage: 5, cost: 0, tierColor: "#cfd6e0", scale: 1.0, barrels: 1, tip: "cap" },
-    { name: "리볼버", baseDamage: 12, cost: 150, tierColor: "#8bd17c", scale: 1.14, barrels: 1, tip: "cap" },
-    { name: "더블배럴 샷건", baseDamage: 26, cost: 500, tierColor: "#5cc8e0", scale: 1.28, barrels: 2, tip: "cap" },
-    { name: "기관단총", baseDamage: 55, cost: 1500, tierColor: "#7c8bff", scale: 1.42, barrels: 1, tip: "cap" },
-    { name: "개틀링건", baseDamage: 20, cost: 4000, tierColor: "#d17cff", scale: 1.56, barrels: 3, tip: "cap" },
-    { name: "로켓런처", baseDamage: 130, cost: 10000, tierColor: "#ff9d4d", scale: 1.7, barrels: 1, tip: "cone" },
-    { name: "발칸포", baseDamage: 260, cost: 25000, tierColor: "#ff6b6b", scale: 1.85, barrels: 4, tip: "cone" },
-    { name: "레이저건", baseDamage: 520, cost: 60000, tierColor: "#ffd93d", scale: 2.0, barrels: 1, tip: "crystal" },
+    { name: "장난감 총", baseDamage: 5, cost: 0, tierColor: "#cfd6e0", scale: 1, barrels: 1, tip: "cap" },
+    { name: "리볼버", baseDamage: 12, cost: 150, tierColor: "#8bd17c", scale: 1.08, barrels: 1, tip: "cap" },
+    { name: "더블배럴 샷건", baseDamage: 26, cost: 500, tierColor: "#5cc8e0", scale: 1.17, barrels: 2, tip: "cap" },
+    { name: "기관단총", baseDamage: 55, cost: 1500, tierColor: "#7c8bff", scale: 1.25, barrels: 1, tip: "cap" },
+    { name: "개틀링건", baseDamage: 85, cost: 4000, tierColor: "#d17cff", scale: 1.33, barrels: 3, tip: "cap" },
+    { name: "로켓런처", baseDamage: 130, cost: 10000, tierColor: "#ff9d4d", scale: 1.41, barrels: 1, tip: "cone" },
+    { name: "발칸포", baseDamage: 260, cost: 25000, tierColor: "#ff6b6b", scale: 1.5, barrels: 4, tip: "cone" },
+    { name: "레이저건", baseDamage: 520, cost: 60000, tierColor: "#ffd93d", scale: 1.58, barrels: 1, tip: "crystal" },
+    { name: "플라즈마 캐논", baseDamage: 926, cost: 141000, tierColor: "#da8a62", scale: 1.66, barrels: 1, tip: "cone" },
+    { name: "레일건", baseDamage: 1648, cost: 331350, tierColor: "#62daad", scale: 1.74, barrels: 2, tip: "crystal" },
+    { name: "미니건 어레이", baseDamage: 2933, cost: 778673, tierColor: "#d062da", scale: 1.83, barrels: 3, tip: "cone" },
+    { name: "유탄발사기", baseDamage: 5221, cost: 1829882, tierColor: "#c1da62", scale: 1.91, barrels: 4, tip: "cone" },
+    { name: "곡사포", baseDamage: 9293, cost: 4300223, tierColor: "#629eda", scale: 1.99, barrels: 1, tip: "crystal" },
+    { name: "대전차포", baseDamage: 16542, cost: 10105524, tierColor: "#da627b", scale: 2.08, barrels: 2, tip: "cone" },
+    { name: "이온빔 캐논", baseDamage: 29445, cost: 23747981, tierColor: "#62da6c", scale: 2.16, barrels: 3, tip: "cone" },
+    { name: "양자포", baseDamage: 52412, cost: 55807755, tierColor: "#8f62da", scale: 2.24, barrels: 4, tip: "crystal" },
+    { name: "융합포", baseDamage: 93293, cost: 131148224, tierColor: "#dab262", scale: 2.32, barrels: 1, tip: "crystal" },
+    { name: "텅스텐 관통포", baseDamage: 166062, cost: 308198326, tierColor: "#62dad5", scale: 2.41, barrels: 2, tip: "crystal" },
+    { name: "음파 파쇄포", baseDamage: 295590, cost: 724266066, tierColor: "#da62bc", scale: 2.49, barrels: 3, tip: "crystal" },
+    { name: "중력포", baseDamage: 526150, cost: 1702025255, tierColor: "#99da62", scale: 2.57, barrels: 4, tip: "crystal" },
+    { name: "감마선포", baseDamage: 936547, cost: 3999759349, tierColor: "#6276da", scale: 2.66, barrels: 1, tip: "crystal" },
+    { name: "반물질포", baseDamage: 1667054, cost: 9399434470, tierColor: "#da7162", scale: 2.74, barrels: 2, tip: "crystal" },
+    { name: "블랙홀 발사기", baseDamage: 2967356, cost: 22088671005, tierColor: "#62da94", scale: 2.82, barrels: 3, tip: "crystal" },
+    { name: "초신성포", baseDamage: 5281894, cost: 51908376862, tierColor: "#b762da", scale: 2.9, barrels: 4, tip: "crystal" },
+    { name: "오비탈 레이저", baseDamage: 9401771, cost: 121984685626, tierColor: "#dada62", scale: 2.99, barrels: 1, tip: "crystal" },
+    { name: "차원균열포", baseDamage: 16735152, cost: 286664011221, tierColor: "#62b7da", scale: 3.07, barrels: 2, tip: "crystal" },
+    { name: "항성포", baseDamage: 29788571, cost: 673660426369, tierColor: "#eaa4c1", scale: 3.15, barrels: 3, tip: "crystal" },
+    { name: "은하 파괴포", baseDamage: 53023656, cost: 1583102001967, tierColor: "#adeaa4", scale: 3.23, barrels: 4, tip: "crystal" },
+    { name: "특이점 발사기", baseDamage: 94382108, cost: 3720289704622, tierColor: "#b0a4ea", scale: 3.32, barrels: 1, tip: "crystal" },
+    { name: "종말의 포", baseDamage: 168000152, cost: 8742680805862, tierColor: "#eac4a4", scale: 3.4, barrels: 2, tip: "crystal" },
   ];
 
   const BUILDING_TIERS = [
@@ -27,6 +49,14 @@
 
   function buildingTier(wave) {
     return Math.min(BUILDING_TIERS.length - 1, Math.floor((wave - 1) / 4));
+  }
+
+  function josaEulReul(word) {
+    const code = word.charCodeAt(word.length - 1);
+    if (code >= 0xac00 && code <= 0xd7a3) {
+      return (code - 0xac00) % 28 !== 0 ? "을" : "를";
+    }
+    return "를";
   }
 
   function buildingMaxHP(wave) {
@@ -566,7 +596,7 @@
           <div class="icon"><svg class="icon-svg"><use href="#icon-star"></use></svg></div>
           <div class="info">
             <div class="title">최고 등급 무기 보유중</div>
-            <div class="desc">${WEAPONS[WEAPONS.length - 1].name}을 이미 장착했습니다.</div>
+            <div class="desc">${WEAPONS[WEAPONS.length - 1].name}${josaEulReul(WEAPONS[WEAPONS.length - 1].name)} 이미 장착했습니다.</div>
           </div>
         </div>
       `);
