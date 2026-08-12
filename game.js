@@ -428,15 +428,14 @@
 
   const GUARD_COOLDOWN = 5000;
   const GUARD_PUSHBACK = 1600;
-  let guardCooldownEnd = 0;
+  let guardCooldownRemaining = 0;
 
   function useGuard() {
     ensureAudio();
     if (session.phase !== "falling" || !session.building) return;
-    const now = performance.now();
-    if (now < guardCooldownEnd) return;
-    guardCooldownEnd = now + GUARD_COOLDOWN;
-    fireStart = now;
+    if (guardCooldownRemaining > 0) return;
+    guardCooldownRemaining = GUARD_COOLDOWN;
+    fireStart = performance.now();
 
     const b = session.building;
     const hit = getHitPoint(b);
@@ -1308,6 +1307,7 @@
     const dt = lastFrameTime ? Math.min(now - lastFrameTime, 48) : 16;
     lastFrameTime = now;
 
+    const active = session.phase === "falling" && session.building && !shopOpenTime;
     if (session.phase === "falling" && session.building) {
       const b = session.building;
       const t = Math.min(1, Math.max(0, (now - b.startTime) / b.duration));
@@ -1317,20 +1317,22 @@
         crashBuilding();
       }
     }
+    if (active && guardCooldownRemaining > 0) {
+      guardCooldownRemaining = Math.max(0, guardCooldownRemaining - dt);
+    }
     updateBullets(dt);
     updateParticles();
     updateShockwaves();
-    updateGuardButton(now);
+    updateGuardButton();
     render();
     requestAnimationFrame(loop);
   }
 
-  function updateGuardButton(now) {
-    const remaining = guardCooldownEnd - now;
-    const usable = session.phase === "falling" && !!session.building;
-    if (remaining > 0) {
+  function updateGuardButton() {
+    const usable = session.phase === "falling" && !!session.building && guardCooldownRemaining <= 0;
+    if (guardCooldownRemaining > 0) {
       guardBtn.disabled = true;
-      guardLabelEl.textContent = `방어 (${Math.ceil(remaining / 1000)})`;
+      guardLabelEl.textContent = `방어 (${Math.ceil(guardCooldownRemaining / 1000)})`;
     } else {
       guardBtn.disabled = !usable;
       guardLabelEl.textContent = "방어";
