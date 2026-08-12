@@ -33,7 +33,7 @@
     return Math.round((80 + wave * 20) * Math.pow(1.1, wave - 1));
   }
   function fallDuration(wave) {
-    return Math.max(2800, 8000 - wave * 120);
+    return Math.max(1800, 5200 - wave * 160);
   }
   function rewardForWave(wave) {
     return Math.round(buildingMaxHP(wave) * 0.35);
@@ -202,6 +202,30 @@
   let particles = [];
   let floatingTexts = [];
   let bullets = [];
+  let shockwaves = [];
+
+  function spawnShockwave(x, y, color) {
+    shockwaves.push({ x, y, life: 0, maxLife: 26, color });
+  }
+
+  function updateShockwaves() {
+    shockwaves = shockwaves.filter((s) => s.life < s.maxLife);
+    shockwaves.forEach((s) => s.life++);
+  }
+
+  function drawShockwaves() {
+    shockwaves.forEach((s) => {
+      const t = s.life / s.maxLife;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - t) * 0.6;
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 5 * (1 - t) + 1;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 10 + t * 70, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
   let shakeTime = 0;
   let shakeMag = 0;
 
@@ -225,6 +249,22 @@
       });
     }
     shakeTime = 7; shakeMag = 6;
+  }
+
+  function spawnMuzzleSmoke(x, y) {
+    for (let i = 0; i < 4; i++) {
+      particles.push({
+        x: x + (Math.random() - 0.5) * 6,
+        y: y + (Math.random() - 0.5) * 4,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: -0.5 - Math.random() * 0.6,
+        life: 0, maxLife: 26 + Math.random() * 14,
+        size: 5 + Math.random() * 5,
+        color: "rgba(210,210,215,0.5)",
+        gravity: -0.01,
+        grow: 0.06,
+      });
+    }
   }
 
   function spawnGuardParticles(x, y) {
@@ -276,6 +316,7 @@
       p.vy += p.gravity;
       p.x += p.vx;
       p.y += p.vy;
+      if (p.grow) p.size += p.grow;
     });
     floatingTexts = floatingTexts.filter((t) => t.life < t.maxLife);
     floatingTexts.forEach((t) => {
@@ -322,6 +363,20 @@
       }
     }
 
+    const streaks = Array.from({ length: 4 + Math.floor(Math.random() * 3) }, () => ({
+      x: Math.random(),
+      y0: Math.random() * 0.3,
+      len: 0.2 + Math.random() * 0.4,
+      w: 3 + Math.random() * 5,
+    }));
+
+    const rubble = Array.from({ length: 10 }, () => ({
+      dx: (Math.random() - 0.5) * 0.9,
+      size: 4 + Math.random() * 7,
+      rot: Math.random() * Math.PI,
+      reveal: Math.random(),
+    }));
+
     session.building = {
       x: W / 2 - width / 2,
       width, height,
@@ -335,6 +390,8 @@
       tier,
       cols, rows, windows,
       crackSeeds,
+      streaks,
+      rubble,
     };
     session.phase = "falling";
     session.hasStarted = true;
@@ -365,6 +422,7 @@
       color: currentWeapon().tierColor,
       size: 3.5 + save.weaponTier * 0.6,
     });
+    spawnMuzzleSmoke(muzzle.x, muzzle.y);
     sfxShoot();
   }
 
@@ -408,6 +466,7 @@
     const reward = Math.round(rewardForWave(session.wave) * goldMultiplier() * streakBonus);
     save.gold += reward;
     spawnDebrisParticles(b, false);
+    spawnShockwave(b.x + b.width / 2, b.y + b.height / 2, "#ffe9a0");
     showFloatingText(`+${reward.toLocaleString("ko-KR")}💰`, b.x + b.width / 2, b.y + b.height / 2, "#ffd93d");
     sfxDestroy();
 
@@ -426,6 +485,7 @@
     session.streak = 0;
     session.lives -= 1;
     spawnDebrisParticles(b, true);
+    spawnShockwave(b.x + b.width / 2, b.y + b.height / 2, "#ff6b6b");
     showFloatingText("건물 붕괴! 💔", b.x + b.width / 2, b.y + b.height / 2, "#ff6b6b");
     sfxCrash();
     session.building = null;
@@ -630,17 +690,73 @@
   let fireStart = -Infinity;
   let lastFrameTime = null;
 
+  const SKYLINE = [
+    { x: -10, w: 60, h: 130, a: 0.22 },
+    { x: 50, w: 44, h: 90, a: 0.18 },
+    { x: 100, w: 66, h: 165, a: 0.24 },
+    { x: 175, w: 40, h: 75, a: 0.16 },
+    { x: 225, w: 58, h: 145, a: 0.22 },
+    { x: 295, w: 46, h: 100, a: 0.18 },
+    { x: 350, w: 70, h: 175, a: 0.25 },
+    { x: 430, w: 50, h: 110, a: 0.19 },
+  ];
+
+  const GROUND_CRACKS = Array.from({ length: 16 }, () => {
+    const x1 = Math.random() * W;
+    const y1 = Math.random() * 46;
+    return {
+      x1, y1,
+      x2: x1 + (Math.random() - 0.5) * 70,
+      y2: y1 + 8 + Math.random() * 24,
+    };
+  });
+
+  const GROUND_DEBRIS = Array.from({ length: 22 }, () => ({
+    x: Math.random() * W,
+    y: 10 + Math.random() * 44,
+    r: 1.5 + Math.random() * 3,
+    a: 0.15 + Math.random() * 0.25,
+  }));
+
   function drawBackground() {
     const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, "#87ceeb");
-    grad.addColorStop(1, "#c9ecf5");
+    grad.addColorStop(0, "#4f96c9");
+    grad.addColorStop(0.38, "#7bbfe0");
+    grad.addColorStop(0.72, "#bfe3ef");
+    grad.addColorStop(1, "#dff1ee");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    // sun glow
+    ctx.save();
+    const sunX = W * 0.76, sunY = 95;
+    const sunGlow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, 135);
+    sunGlow.addColorStop(0, "rgba(255,251,222,0.6)");
+    sunGlow.addColorStop(1, "rgba(255,251,222,0)");
+    ctx.fillStyle = sunGlow;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 135, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,253,235,0.85)";
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // distant skyline (parallax silhouette)
+    ctx.save();
+    ctx.fillStyle = "#4d7699";
+    SKYLINE.forEach((s) => {
+      ctx.globalAlpha = s.a;
+      ctx.fillRect(s.x, GROUND_Y - s.h, s.w, s.h + 90);
+    });
+    ctx.restore();
+
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
     drawCloud(70, 80, 1);
     drawCloud(340, 130, 0.8);
     drawCloud(220, 50, 0.6);
+    drawCloud(420, 205, 0.55);
   }
 
   function drawCloud(cx, cy, scale) {
@@ -652,10 +768,34 @@
   }
 
   function drawGround() {
-    ctx.fillStyle = "#5c7a4a";
-    ctx.fillRect(0, GROUND_Y + 40, W, H - GROUND_Y - 40);
-    ctx.fillStyle = "#4a6339";
-    ctx.fillRect(0, GROUND_Y + 40, W, 6);
+    const top = GROUND_Y + 40;
+    const grad = ctx.createLinearGradient(0, top, 0, H);
+    grad.addColorStop(0, "#7a9a5e");
+    grad.addColorStop(0.4, "#5c7a44");
+    grad.addColorStop(1, "#38491f");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, top, W, H - top);
+
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillRect(0, top, W, 4);
+    ctx.fillStyle = "rgba(255,255,255,0.12)";
+    ctx.fillRect(0, top + 4, W, 2);
+
+    ctx.strokeStyle = "rgba(0,0,0,0.14)";
+    ctx.lineWidth = 1.4;
+    GROUND_CRACKS.forEach((c) => {
+      ctx.beginPath();
+      ctx.moveTo(c.x1, top + c.y1);
+      ctx.lineTo(c.x2, top + c.y2);
+      ctx.stroke();
+    });
+
+    GROUND_DEBRIS.forEach((d) => {
+      ctx.fillStyle = `rgba(0,0,0,${d.a})`;
+      ctx.beginPath();
+      ctx.arc(d.x, top + d.y, d.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
   }
 
   function drawRoof(b, palette) {
@@ -766,6 +906,20 @@
       }
     });
 
+    // weathering streaks
+    ctx.save();
+    b.streaks.forEach((st) => {
+      const sx = b.x + st.x * b.width;
+      const sy0 = b.y + st.y0 * b.height;
+      const sy1 = b.y + Math.min(1, st.y0 + st.len) * b.height;
+      const streakGrad = ctx.createLinearGradient(sx, sy0, sx, sy1);
+      streakGrad.addColorStop(0, "rgba(10,10,12,0.16)");
+      streakGrad.addColorStop(1, "rgba(10,10,12,0)");
+      ctx.fillStyle = streakGrad;
+      ctx.fillRect(sx - st.w / 2, sy0, st.w, sy1 - sy0);
+    });
+    ctx.restore();
+
     // diagonal cross-brace truss (tier 3+)
     if (b.tier >= 3) {
       ctx.strokeStyle = "rgba(15,15,17,0.45)";
@@ -805,6 +959,21 @@
         });
         ctx.stroke();
       }
+    });
+
+    // crumbling debris clinging to the damaged base edge
+    const baseY = b.y + b.height;
+    const centerX = b.x + b.width / 2;
+    b.rubble.forEach((r) => {
+      if (damage < r.reveal) return;
+      const rx = centerX + r.dx * b.width;
+      const ry = baseY - r.size * 0.4;
+      ctx.save();
+      ctx.translate(rx, ry);
+      ctx.rotate(r.rot);
+      ctx.fillStyle = shade(palette.dark, -15);
+      ctx.fillRect(-r.size / 2, -r.size / 2, r.size, r.size);
+      ctx.restore();
     });
 
     if (flashAlpha > 0) {
@@ -884,6 +1053,15 @@
     const s = getGunState(performance.now());
     const { gx, gy, size, weapon, kick, barrelH } = s;
 
+    // ground shadow beneath the mount
+    ctx.save();
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(gx, GROUND_Y + 34, size * 0.5, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
     ctx.save();
     ctx.translate(gx, gy);
 
@@ -902,7 +1080,11 @@
     // mount / base
     const mountW = size * 0.66;
     const mountH = size * 0.3;
-    ctx.fillStyle = "#2c2d30";
+    const mountGrad = ctx.createLinearGradient(-mountW / 2, 0, mountW / 2, 0);
+    mountGrad.addColorStop(0, "#3a3b3f");
+    mountGrad.addColorStop(0.5, "#525459");
+    mountGrad.addColorStop(1, "#232427");
+    ctx.fillStyle = mountGrad;
     ctx.beginPath();
     ctx.moveTo(-mountW / 2, mountH * 0.1);
     ctx.lineTo(mountW / 2, mountH * 0.1);
@@ -1108,9 +1290,17 @@
     if (session.building) drawBuilding(session.building);
     drawGun();
     drawBullets();
+    drawShockwaves();
     drawParticles();
     drawFloatingTexts();
     ctx.restore();
+
+    // vignette
+    const vgn = ctx.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, H * 0.75);
+    vgn.addColorStop(0, "rgba(0,0,0,0)");
+    vgn.addColorStop(1, "rgba(0,0,0,0.22)");
+    ctx.fillStyle = vgn;
+    ctx.fillRect(0, 0, W, H);
   }
 
   function loop() {
@@ -1129,6 +1319,7 @@
     }
     updateBullets(dt);
     updateParticles();
+    updateShockwaves();
     updateGuardButton(now);
     render();
     requestAnimationFrame(loop);
