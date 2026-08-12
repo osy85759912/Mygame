@@ -6,6 +6,9 @@
   const BASE_LIVES = 3;
   const MAX_LIFE_LEVEL = 7;
 
+  const LEADERBOARD_URL = "https://nlfslsxvngwjekaagkwv.supabase.co/rest/v1/leaderboard";
+  const LEADERBOARD_KEY = "sb_publishable_r169QLxcZJ6vsVa3oHLNmA_8Z1cd7fb";
+
   const WEAPONS = [
     { name: "장난감 총", baseDamage: 5, cost: 0, tierColor: "#cfd6e0", scale: 1, barrels: 1, tip: "cap" },
     { name: "리볼버", baseDamage: 12, cost: 150, tierColor: "#8bd17c", scale: 1.08, barrels: 1, tip: "cap" },
@@ -177,6 +180,13 @@
   const shopGoldEl = document.getElementById("shopGold");
   const closeShopBtn = document.getElementById("closeShopBtn");
   const muteBtn = document.getElementById("muteBtn");
+  const leaderboardBtn = document.getElementById("leaderboardBtn");
+  const leaderboardModal = document.getElementById("leaderboardModal");
+  const leaderboardListEl = document.getElementById("leaderboardList");
+  const closeLeaderboardBtn = document.getElementById("closeLeaderboardBtn");
+  const leaderboardNameInput = document.getElementById("leaderboardName");
+  const submitScoreBtn = document.getElementById("submitScoreBtn");
+  const leaderboardStatusEl = document.getElementById("leaderboardStatus");
 
   // ---------- Audio (synthesized, no assets) ----------
   let audioCtx = null;
@@ -623,8 +633,10 @@
   }
 
   function showGameOver() {
+    lastRunResult = { wave: session.wave, gold: save.gold };
     gameOverStats.innerHTML = `이번 판 웨이브 <b>${session.wave}</b> 까지 도달했어요.<br>모은 골드와 무기 강화는 모두 초기화됩니다.<br>최고 기록: 웨이브 ${save.bestWave}`;
     gameOverOverlay.classList.remove("hidden");
+    resetLeaderboardSubmitUI();
   }
 
   function resetProgressOnDeath() {
@@ -847,6 +859,105 @@
     persist();
     renderShop();
     updateUI();
+  });
+
+  // ---------- Leaderboard ----------
+  let lastRunResult = null;
+
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  async function fetchLeaderboard() {
+    leaderboardListEl.innerHTML = "불러오는 중...";
+    try {
+      const res = await fetch(`${LEADERBOARD_URL}?select=name,wave,gold&order=wave.desc,gold.desc&limit=20`, {
+        headers: {
+          apikey: LEADERBOARD_KEY,
+          Authorization: `Bearer ${LEADERBOARD_KEY}`,
+        },
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const rows = await res.json();
+      if (!rows.length) {
+        leaderboardListEl.innerHTML = `<div class="leaderboard-empty">아직 등록된 기록이 없습니다. 첫 기록을 남겨보세요!</div>`;
+        return;
+      }
+      leaderboardListEl.innerHTML = rows.map((r, i) => `
+        <div class="leaderboard-row">
+          <span class="lb-rank">${i + 1}</span>
+          <span class="lb-name">${escapeHtml(String(r.name))}</span>
+          <span class="lb-wave">웨이브 ${r.wave}</span>
+          <span class="lb-gold">${Number(r.gold).toLocaleString("ko-KR")}💰</span>
+        </div>
+      `).join("");
+    } catch (e) {
+      leaderboardListEl.innerHTML = `<div class="leaderboard-empty">리더보드를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</div>`;
+    }
+  }
+
+  async function submitScore(name, wave, gold) {
+    const res = await fetch(LEADERBOARD_URL, {
+      method: "POST",
+      headers: {
+        apikey: LEADERBOARD_KEY,
+        Authorization: `Bearer ${LEADERBOARD_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ name, wave, gold }),
+    });
+    if (!res.ok) throw new Error(`status ${res.status}`);
+  }
+
+  function openLeaderboard() {
+    leaderboardModal.classList.remove("hidden");
+    fetchLeaderboard();
+  }
+  function closeLeaderboard() {
+    leaderboardModal.classList.add("hidden");
+  }
+
+  function resetLeaderboardSubmitUI() {
+    leaderboardNameInput.value = "";
+    leaderboardStatusEl.textContent = "";
+    leaderboardStatusEl.className = "leaderboard-submit-status";
+    leaderboardNameInput.disabled = false;
+    submitScoreBtn.disabled = false;
+    submitScoreBtn.textContent = "등록";
+  }
+
+  leaderboardBtn.addEventListener("click", openLeaderboard);
+  closeLeaderboardBtn.addEventListener("click", closeLeaderboard);
+  leaderboardModal.addEventListener("click", (e) => {
+    if (e.target === leaderboardModal) closeLeaderboard();
+  });
+
+  submitScoreBtn.addEventListener("click", async () => {
+    const name = leaderboardNameInput.value.trim();
+    if (!name) {
+      leaderboardStatusEl.textContent = "닉네임을 입력해주세요.";
+      leaderboardStatusEl.className = "leaderboard-submit-status error";
+      return;
+    }
+    if (!lastRunResult) return;
+    leaderboardNameInput.disabled = true;
+    submitScoreBtn.disabled = true;
+    submitScoreBtn.textContent = "등록 중...";
+    leaderboardStatusEl.textContent = "";
+    leaderboardStatusEl.className = "leaderboard-submit-status";
+    try {
+      await submitScore(name.slice(0, 20), lastRunResult.wave, lastRunResult.gold);
+      leaderboardStatusEl.textContent = "등록 완료! 리더보드에서 확인해보세요.";
+      leaderboardStatusEl.className = "leaderboard-submit-status success";
+      submitScoreBtn.textContent = "등록 완료";
+    } catch (e) {
+      leaderboardStatusEl.textContent = "등록에 실패했습니다. 다시 시도해주세요.";
+      leaderboardStatusEl.className = "leaderboard-submit-status error";
+      leaderboardNameInput.disabled = false;
+      submitScoreBtn.disabled = false;
+      submitScoreBtn.textContent = "등록";
+    }
   });
 
   // ---------- UI ----------

@@ -495,6 +495,111 @@ body {
   padding-bottom: 2px;
 }
 
+.leaderboard-submit {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 0 0 16px;
+  text-align: left;
+}
+
+.leaderboard-prompt {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--paper-dim);
+  text-align: center;
+}
+
+.leaderboard-submit-row {
+  display: flex;
+  gap: 8px;
+}
+
+.leaderboard-submit-row input {
+  flex: 1;
+  min-width: 0;
+  background: var(--asphalt-2);
+  border: 1px solid var(--concrete-border);
+  border-radius: 6px;
+  color: var(--paper);
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.leaderboard-submit-row .btn.small {
+  padding: 8px 14px;
+  flex-shrink: 0;
+}
+
+.leaderboard-submit-status {
+  min-height: 14px;
+  font-size: 11.5px;
+  text-align: center;
+  margin-top: 6px;
+}
+.leaderboard-submit-status.success { color: #8bd17c; }
+.leaderboard-submit-status.error { color: #ff9d8a; }
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+  border-bottom: 1px dashed rgba(0,0,0,0.2);
+  font-size: 13px;
+}
+.leaderboard-row:last-child { border-bottom: none; }
+
+.leaderboard-row .lb-rank {
+  width: 24px;
+  flex-shrink: 0;
+  font-weight: 900;
+  color: #a39a86;
+  font-family: "SFMono-Regular", "Roboto Mono", "Consolas", monospace;
+}
+.leaderboard-row:nth-child(1) .lb-rank { color: var(--caution); }
+.leaderboard-row:nth-child(2) .lb-rank { color: #9aa7b8; }
+.leaderboard-row:nth-child(3) .lb-rank { color: var(--brick); }
+
+.leaderboard-row .lb-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-row .lb-wave {
+  color: #6b6355;
+  font-size: 11.5px;
+  flex-shrink: 0;
+}
+
+.leaderboard-row .lb-gold {
+  color: var(--brick-dim);
+  font-weight: 700;
+  font-family: "SFMono-Regular", "Roboto Mono", "Consolas", monospace;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.leaderboard-empty {
+  text-align: center;
+  color: #6b6355;
+  font-size: 13px;
+  padding: 20px 0;
+}
+
 @media (max-width: 380px) {
   .stat { font-size: 12px; padding: 5px 8px; }
   .weapon-emoji { width: 34px; height: 34px; }
