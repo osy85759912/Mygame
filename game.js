@@ -84,7 +84,7 @@
     return 0.15 + (level - 1) * 0.05;
   }
   function turretInterval(level) {
-    return Math.max(1200, 2600 - (level - 1) * 150);
+    return Math.max(300, 1000 - (level - 1) * 100);
   }
 
   // ---------- Save data ----------
@@ -481,7 +481,7 @@
     sfxShoot();
   }
 
-  const GUARD_COOLDOWN = 5000;
+  const GUARD_COOLDOWN = 3000;
   const GUARD_PUSHBACK = 1600;
   let guardCooldownRemaining = 0;
 
