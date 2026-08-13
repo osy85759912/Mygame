@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>빌딩 브레이커</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="icon-coin" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="7.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <circle cx="10" cy="10" r="3" fill="currentColor"/>
+      </symbol>
+      <symbol id="icon-bars" viewBox="0 0 20 20">
+        <rect x="2" y="12" width="4" height="6"/>
+        <rect x="8" y="7" width="4" height="11"/>
+        <rect x="14" y="2" width="4" height="16"/>
+      </symbol>
+      <symbol id="icon-heart" viewBox="0 0 20 20">
+        <path d="M10 17.2C10 17.2 2.4 12.4 2.4 7.1C2.4 4.2 4.7 2.3 7.2 2.3C8.8 2.3 9.7 3.1 10 3.9C10.3 3.1 11.2 2.3 12.8 2.3C15.3 2.3 17.6 4.2 17.6 7.1C17.6 12.4 10 17.2 10 17.2Z"/>
+      </symbol>
+      <symbol id="icon-star" viewBox="0 0 20 20">
+        <path d="M10 1.6L12.4 7.3L18.4 7.9L13.8 11.9L15.2 17.8L10 14.6L4.8 17.8L6.2 11.9L1.6 7.9L7.6 7.3Z"/>
+      </symbol>
+      <symbol id="icon-wrench" viewBox="0 0 20 20">
+        <path d="M13.8 2.6a4.2 4.2 0 0 0-5.6 4.9L2.9 12.8l3.3 3.3 5.3-5.3a4.2 4.2 0 0 0 4.9-5.6l-2.6 2.6-2.1-.6-.6-2.1Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="icon-crosshair" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="6.4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M10 1.5v3.6M10 14.9v3.6M1.5 10h3.6M14.9 10h3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="10" cy="10" r="1.6"/>
+      </symbol>
+      <symbol id="icon-speaker" viewBox="0 0 20 20">
+        <path d="M3 7.5v5h3.2l4.3 3.3V4.2L6.2 7.5H3Z"/>
+        <path d="M13.3 7a4 4 0 0 1 0 6M15.6 4.7a7.4 7.4 0 0 1 0 10.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="icon-speaker-mute" viewBox="0 0 20 20">
+        <path d="M3 7.5v5h3.2l4.3 3.3V4.2L6.2 7.5H3Z"/>
+        <path d="M13.5 7.5l4.4 5M17.9 7.5l-4.4 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="icon-crane" viewBox="0 0 20 20">
+        <path d="M3 18h9M5 18V4M5 4h9M14 4v3M9 4v6M9 10h3.5l1.5 3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="15" cy="14.5" r="1.1"/>
+      </symbol>
+      <symbol id="icon-burst" viewBox="0 0 20 20">
+        <path d="M10 1.5L11.8 7.2L17.5 5.4L13.6 10L17.5 14.6L11.8 12.8L10 18.5L8.2 12.8L2.5 14.6L6.4 10L2.5 5.4L8.2 7.2Z"/>
+      </symbol>
+      <symbol id="icon-trend" viewBox="0 0 20 20">
+        <path d="M2.5 14.5L7.5 9.5L11 12.5L17.5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M13 5h4.5v4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="icon-shield" viewBox="0 0 20 20">
+        <path d="M10 2L16.3 4.4V9.3C16.3 13.4 13.7 16.8 10 18C6.3 16.8 3.7 13.4 3.7 9.3V4.4L10 2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M7 9.6L9.1 11.7L13.2 7.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="icon-turret" viewBox="0 0 20 20">
+        <rect x="4" y="14" width="12" height="3.4" rx="1" fill="currentColor"/>
+        <circle cx="10" cy="11.5" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M10 11.5L15.5 8.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="10" cy="11.5" r="1.5" fill="currentColor"/>
+      </symbol>
+      <symbol id="icon-trophy" viewBox="0 0 20 20">
+        <path d="M6 3h8v4.2a4 4 0 0 1-8 0V3Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M6 4.2H3.6a1.6 1.6 0 0 0 0 3.2H5.4M14 4.2h2.4a1.6 1.6 0 0 1 0 3.2H14.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        <path d="M10 11.2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M7 17h6M8 17c0-1.3.6-2.1 2-2.1s2 .8 2 2.1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div class="app">
+    <div class="hazard-strip"></div>
+    <div class="masthead">
+      <span class="eyebrow">Demolition Notice · 철거 허가 구역</span>
+      <h1><svg class="icon-svg mark"><use href="#icon-crane"></use></svg>빌딩 브레이커</h1>
+    </div>
+
+    <header class="topbar">
+      <div class="stat gold"><svg class="icon-svg"><use href="#icon-coin"></use></svg><span id="goldValue">0</span></div>
+      <div class="stat"><svg class="icon-svg"><use href="#icon-bars"></use></svg><span id="waveValue">1</span></div>
+      <div class="stat lives" id="livesDisplay"></div>
+      <div class="stat best"><svg class="icon-svg"><use href="#icon-star"></use></svg><span id="bestWaveValue">1</span></div>
+      <button id="leaderboardBtn" class="icon-btn" title="리더보드"><svg class="icon-svg"><use href="#icon-trophy"></use></svg></button>
+      <button id="muteBtn" class="icon-btn" title="소리 켜기/끄기"><svg class="icon-svg"><use href="#icon-speaker"></use></svg></button>
+    </header>
+
+    <main class="game-area">
+      <span class="rivet-tr"></span>
+      <span class="rivet-bl"></span>
+      <div class="canvas-frame">
+        <canvas id="gameCanvas" width="480" height="640"></canvas>
+
+        <div class="overlay" id="startOverlay">
+          <div class="panel">
+            <h1><svg class="icon-svg mark"><use href="#icon-crane"></use></svg>빌딩 브레이커</h1>
+            <p>버튼을 누르면 건물이 떨어집니다.<br>제한 시간 안에 클릭하거나 스페이스바로 쏴서 부수고 돈을 버세요!<br>다 못 부수면 생명이 줄어들고, 생명을 모두 잃으면 처음부터 다시 시작해요.</p>
+            <button id="startBtn" class="btn primary">시작하기</button>
+          </div>
+        </div>
+
+        <div class="overlay hidden" id="gameOverOverlay">
+          <div class="panel">
+            <h1><svg class="icon-svg mark"><use href="#icon-burst"></use></svg>게임 오버</h1>
+            <p id="gameOverStats"></p>
+            <div class="leaderboard-submit" id="leaderboardSubmit">
+              <p class="leaderboard-prompt">리더보드에 이번 기록을 등록하시겠습니까?</p>
+              <div class="leaderboard-submit-row">
+                <input type="text" id="leaderboardName" maxlength="20" placeholder="닉네임 입력">
+                <button id="submitScoreBtn" class="btn small primary">등록</button>
+              </div>
+              <div class="leaderboard-submit-status" id="leaderboardStatus"></div>
+            </div>
+            <button id="restartBtn" class="btn primary">다시 시작</button>
+          </div>
+        </div>
+
+        <button id="guardBtn" class="btn guard-btn" disabled><svg class="icon-svg"><use href="#icon-shield"></use></svg><span class="guard-label">방어</span></button>
+      </div>
+    </main>
+
+    <div class="controls">
+      <div class="weapon-info">
+        <span id="weaponEmoji" class="weapon-emoji"><svg class="icon-svg"><use href="#icon-crosshair"></use></svg></span>
+        <div>
+          <div id="weaponName">장난감 총</div>
+          <div class="sub">공격력 <span id="weaponDamage">5</span></div>
+        </div>
+      </div>
+      <button id="nextBtn" class="btn primary hidden">다음 건물</button>
+      <button id="shopBtn" class="btn"><svg class="icon-svg"><use href="#icon-wrench"></use></svg>상점</button>
+    </div>
+
+    <div class="footer-note">클릭 / 스페이스바로 발사 · Shift 또는 방어 버튼으로 건물을 밀어올리기 · 진행 상황은 이 브라우저에 자동 저장됩니다</div>
+  </div>
+
+  <div class="modal hidden" id="shopModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2><svg class="icon-svg"><use href="#icon-wrench"></use></svg>자재 신청서</h2>
+        <button id="closeShopBtn" class="btn small">닫기</button>
+      </div>
+      <div class="gold-display">보유 골드: <span id="shopGold">0</span></div>
+      <div class="shop-list" id="shopList"></div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="leaderboardModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2><svg class="icon-svg"><use href="#icon-trophy"></use></svg>리더보드</h2>
+        <button id="closeLeaderboardBtn" class="btn small">닫기</button>
+      </div>
+      <div class="leaderboard-list" id="leaderboardList">불러오는 중...</div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
