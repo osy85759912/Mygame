@@ -874,7 +874,6 @@
       const res = await fetch(`${LEADERBOARD_URL}?select=name,wave,gold&order=wave.desc,gold.desc&limit=20`, {
         headers: {
           apikey: LEADERBOARD_KEY,
-          Authorization: `Bearer ${LEADERBOARD_KEY}`,
         },
       });
       if (!res.ok) throw new Error(`status ${res.status}`);
@@ -901,7 +900,6 @@
       method: "POST",
       headers: {
         apikey: LEADERBOARD_KEY,
-        Authorization: `Bearer ${LEADERBOARD_KEY}`,
         "Content-Type": "application/json",
         Prefer: "return=minimal",
       },
