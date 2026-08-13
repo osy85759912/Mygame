@@ -54,7 +54,7 @@
     return Math.min(BUILDING_TIERS.length - 1, Math.floor((wave - 1) / 4));
   }
 
-  const BOSS_WAVE_INTERVAL = 5;
+  const BOSS_WAVE_INTERVAL = 10;
   const BOSS_HP_MULT = 4;
   const BOSS_SIZE_MULT = 1.3;
   const BOSS_DURATION_MULT = 1.8;
