@@ -20,6 +20,7 @@
 html, body {
   height: 100%;
   margin: 0;
+  overscroll-behavior: none;
 }
 
 body {
@@ -194,7 +195,8 @@ body {
   height: auto;
   background: #7ec8e3;
   cursor: pointer;
-  touch-action: manipulation;
+  touch-action: none;
+  overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
