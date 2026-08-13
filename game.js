@@ -54,6 +54,15 @@
     return Math.min(BUILDING_TIERS.length - 1, Math.floor((wave - 1) / 4));
   }
 
+  const BOSS_WAVE_INTERVAL = 5;
+  const BOSS_HP_MULT = 4;
+  const BOSS_SIZE_MULT = 1.3;
+  const BOSS_DURATION_MULT = 1.8;
+  const BOSS_REWARD_MULT = 6;
+  function isBossWave(wave) {
+    return wave % BOSS_WAVE_INTERVAL === 0;
+  }
+
   function josaEulReul(word) {
     const code = word.charCodeAt(word.length - 1);
     if (code >= 0xac00 && code <= 0xd7a3) {
@@ -113,6 +122,7 @@
       turretLevel: 0,
       turretCount: 0,
       bestWave: 1,
+      checkpoint: null,
     };
   }
   function loadSave() {
@@ -435,10 +445,11 @@
   // ---------- Building ----------
   function spawnBuilding() {
     const wave = session.wave;
-    const maxHp = buildingMaxHP(wave);
+    const boss = isBossWave(wave);
+    const maxHp = Math.round(buildingMaxHP(wave) * (boss ? BOSS_HP_MULT : 1));
     const tier = buildingTier(wave);
-    const height = 160 + Math.floor(Math.random() * 70);
-    const width = 120 + Math.floor(Math.random() * 44);
+    const height = Math.round((160 + Math.floor(Math.random() * 70)) * (boss ? BOSS_SIZE_MULT : 1));
+    const width = Math.round((120 + Math.floor(Math.random() * 44)) * (boss ? BOSS_SIZE_MULT : 1));
 
     const crackSeeds = [];
     for (let i = 0; i < 9; i++) {
@@ -488,13 +499,14 @@
       width, height,
       hp: maxHp, maxHp,
       startTime: performance.now(),
-      duration: fallDuration(wave),
+      duration: fallDuration(wave) * (boss ? BOSS_DURATION_MULT : 1),
       startY: -height,
       targetY: GROUND_Y - height,
       y: -height,
       hitFlash: 0,
       hitPunch: 0,
       tier,
+      isBoss: boss,
       cols, rows, windows,
       crackSeeds,
       streaks,
@@ -504,6 +516,10 @@
     session.hasStarted = true;
     startOverlay.classList.add("hidden");
     nextBtn.classList.add("hidden");
+    if (boss) {
+      showFloatingText("⚠ 보스 건물 등장!", W / 2, 220, "#ff4433", false);
+      shakeTime = 10; shakeMag = 5; shakeMaxTime = 10;
+    }
     updateUI();
   }
 
@@ -598,17 +614,33 @@
 
   function destroyBuilding() {
     const b = session.building;
+    const wasBoss = !!b.isBoss;
     session.streak += 1;
     const streakBonus = 1 + Math.min(session.streak * 0.03, 0.5);
-    const reward = Math.round(rewardForWave(session.wave) * goldMultiplier() * streakBonus);
+    const reward = Math.round(rewardForWave(session.wave) * goldMultiplier() * streakBonus * (wasBoss ? BOSS_REWARD_MULT : 1));
     save.gold += reward;
     spawnDebrisParticles(b, false);
-    spawnShockwave(b.x + b.width / 2, b.y + b.height / 2, "#ffe9a0");
+    spawnShockwave(b.x + b.width / 2, b.y + b.height / 2, wasBoss ? "#ff8a5c" : "#ffe9a0");
     showFloatingText(`+${formatNumber(reward)}💰`, b.x + b.width / 2, b.y + b.height / 2, "#ffd93d");
     sfxDestroy();
 
     save.bestWave = Math.max(save.bestWave, session.wave);
     session.wave += 1;
+
+    if (wasBoss) {
+      save.checkpoint = {
+        wave: session.wave,
+        gold: save.gold,
+        weaponTier: save.weaponTier,
+        dmgLevel: save.dmgLevel,
+        lifeLevel: save.lifeLevel,
+        goldMultLevel: save.goldMultLevel,
+        turretLevel: save.turretLevel,
+        turretCount: save.turretCount,
+      };
+      showFloatingText("🚩 체크포인트 저장!", b.x + b.width / 2, b.y + b.height / 2 - 40, "#5cc8e0", false);
+    }
+
     session.building = null;
     session.phase = "idle";
     persist();
@@ -641,20 +673,35 @@
 
   function showGameOver() {
     lastRunResult = { wave: session.wave, gold: save.gold };
-    gameOverStats.innerHTML = `이번 판 웨이브 <b>${session.wave}</b> 까지 도달했어요.<br>모은 골드와 무기 강화는 모두 초기화됩니다.<br>최고 기록: 웨이브 ${save.bestWave}`;
+    const cp = save.checkpoint;
+    const resetLine = cp
+      ? `보스 체크포인트 덕분에 웨이브 <b>${cp.wave}</b>부터 장비를 유지한 채 다시 시작합니다.`
+      : "모은 골드와 무기 강화는 모두 초기화됩니다.";
+    gameOverStats.innerHTML = `이번 판 웨이브 <b>${session.wave}</b> 까지 도달했어요.<br>${resetLine}<br>최고 기록: 웨이브 ${save.bestWave}`;
     gameOverOverlay.classList.remove("hidden");
     resetLeaderboardSubmitUI();
   }
 
   function resetProgressOnDeath() {
     const bestWave = save.bestWave;
+    const cp = save.checkpoint;
     save = defaultSave();
     save.bestWave = bestWave;
+    if (cp) {
+      save.checkpoint = cp;
+      save.gold = cp.gold;
+      save.weaponTier = cp.weaponTier;
+      save.dmgLevel = cp.dmgLevel;
+      save.lifeLevel = cp.lifeLevel;
+      save.goldMultLevel = cp.goldMultLevel;
+      save.turretLevel = cp.turretLevel;
+      save.turretCount = cp.turretCount;
+    }
     persist();
   }
 
   function restartRun() {
-    session.wave = 1;
+    session.wave = save.checkpoint ? save.checkpoint.wave : 1;
     session.lives = maxLives();
     session.streak = 0;
     session.building = null;
@@ -1317,6 +1364,15 @@
       ctx.fillRect(b.x, b.y, b.width, b.height);
     }
 
+    if (b.isBoss) {
+      ctx.save();
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 180);
+      ctx.strokeStyle = `rgba(255,68,51,${0.45 + pulse * 0.45})`;
+      ctx.lineWidth = 4 + pulse * 2;
+      ctx.strokeRect(b.x - 4, b.y - 4, b.width + 8, b.height + 8);
+      ctx.restore();
+    }
+
     ctx.restore();
 
     // health bar
@@ -1326,7 +1382,7 @@
     roundRectPath(ctx, barX, barY, barW, 8, 3);
     ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.fill();
-    const hpColor = frac > 0.5 ? "#8bd17c" : frac > 0.25 ? "#ffd93d" : "#ff6b6b";
+    const hpColor = b.isBoss ? "#ff4433" : frac > 0.5 ? "#8bd17c" : frac > 0.25 ? "#ffd93d" : "#ff6b6b";
     const hpGrad = ctx.createLinearGradient(barX, barY, barX, barY + 8);
     hpGrad.addColorStop(0, shade(hpColor, 25));
     hpGrad.addColorStop(0.55, hpColor);
@@ -1339,6 +1395,14 @@
     ctx.lineWidth = 1;
     roundRectPath(ctx, barX, barY, barW, 8, 3);
     ctx.stroke();
+    if (b.isBoss) {
+      ctx.save();
+      ctx.font = "bold 11px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#ff4433";
+      ctx.fillText("⚠ BOSS", barX, barY - 6);
+      ctx.restore();
+    }
 
     // fall timer bar (top of screen)
     const elapsed = performance.now() - b.startTime;
