@@ -71,6 +71,13 @@
   function rewardForWave(wave) {
     return Math.round(buildingMaxHP(wave) * 0.35);
   }
+  function formatNumber(n) {
+    const num = Number(n);
+    if (Math.abs(num) >= 1_000_000) {
+      return (num / 1_000_000).toFixed(3) + "M";
+    }
+    return num.toLocaleString("ko-KR");
+  }
   function dmgUpgradeCost(level) {
     return Math.round(80 * Math.pow(1.35, level));
   }
@@ -597,7 +604,7 @@
     save.gold += reward;
     spawnDebrisParticles(b, false);
     spawnShockwave(b.x + b.width / 2, b.y + b.height / 2, "#ffe9a0");
-    showFloatingText(`+${reward.toLocaleString("ko-KR")}💰`, b.x + b.width / 2, b.y + b.height / 2, "#ffd93d");
+    showFloatingText(`+${formatNumber(reward)}💰`, b.x + b.width / 2, b.y + b.height / 2, "#ffd93d");
     sfxDestroy();
 
     save.bestWave = Math.max(save.bestWave, session.wave);
@@ -676,7 +683,7 @@
   }
 
   function renderShop() {
-    shopGoldEl.textContent = save.gold.toLocaleString("ko-KR");
+    shopGoldEl.textContent = formatNumber(save.gold);
     const items = [];
 
     // Weapon upgrade
@@ -690,7 +697,7 @@
             <div class="title">무기 업그레이드: ${nw.name}</div>
             <div class="desc">공격력 ${currentWeapon().baseDamage} → ${nw.baseDamage}</div>
           </div>
-          <button class="btn small buy-btn" data-action="buyWeapon" ${save.gold < cost ? "disabled" : ""}>${cost.toLocaleString("ko-KR")}💰</button>
+          <button class="btn small buy-btn" data-action="buyWeapon" ${save.gold < cost ? "disabled" : ""}>${formatNumber(cost)}💰</button>
         </div>
       `);
     } else {
@@ -714,7 +721,7 @@
           <div class="title">공격력 강화 (Lv.${save.dmgLevel})</div>
           <div class="desc">현재 공격력 ${currentDamage().toFixed(1)} → ${(currentWeapon().baseDamage * (1 + (save.dmgLevel + 1) * 0.08)).toFixed(1)} (+8%)</div>
         </div>
-        <button class="btn small buy-btn" data-action="buyDamage" ${save.gold < dmgCost ? "disabled" : ""}>${dmgCost.toLocaleString("ko-KR")}💰</button>
+        <button class="btn small buy-btn" data-action="buyDamage" ${save.gold < dmgCost ? "disabled" : ""}>${formatNumber(dmgCost)}💰</button>
       </div>
     `);
 
@@ -728,7 +735,7 @@
             <div class="title">최대 생명 증가</div>
             <div class="desc">최대 생명 ${maxLives()} → ${maxLives() + 1}</div>
           </div>
-          <button class="btn small buy-btn" data-action="buyLife" ${save.gold < lifeCost ? "disabled" : ""}>${lifeCost.toLocaleString("ko-KR")}💰</button>
+          <button class="btn small buy-btn" data-action="buyLife" ${save.gold < lifeCost ? "disabled" : ""}>${formatNumber(lifeCost)}💰</button>
         </div>
       `);
     } else {
@@ -752,7 +759,7 @@
           <div class="title">골드 획득량 증가 (Lv.${save.goldMultLevel})</div>
           <div class="desc">획득 배율 x${goldMultiplier().toFixed(2)} → x${(1 + (save.goldMultLevel + 1) * 0.15).toFixed(2)}</div>
         </div>
-        <button class="btn small buy-btn" data-action="buyGoldMult" ${save.gold < gmCost ? "disabled" : ""}>${gmCost.toLocaleString("ko-KR")}💰</button>
+        <button class="btn small buy-btn" data-action="buyGoldMult" ${save.gold < gmCost ? "disabled" : ""}>${formatNumber(gmCost)}💰</button>
       </div>
     `);
 
@@ -771,7 +778,7 @@
           <div class="title">${save.turretLevel > 0 ? `자동 터렛 강화 (Lv.${save.turretLevel})` : "자동 터렛 설치"}</div>
           <div class="desc">${turretOwnedDesc} → ${(turretNextInterval / 1000).toFixed(1)}초마다 · 공격력 ${(turretNextFrac * 100).toFixed(0)}%</div>
         </div>
-        <button class="btn small buy-btn" data-action="buyTurret" ${save.gold < turretCost ? "disabled" : ""}>${turretCost.toLocaleString("ko-KR")}💰</button>
+        <button class="btn small buy-btn" data-action="buyTurret" ${save.gold < turretCost ? "disabled" : ""}>${formatNumber(turretCost)}💰</button>
       </div>
     `);
 
@@ -786,7 +793,7 @@
               <div class="title">터렛 개수 증가 (현재 ${save.turretCount}기)</div>
               <div class="desc">터렛을 한 대 더 배치해 동시에 발사합니다. ${save.turretCount}기 → ${save.turretCount + 1}기</div>
             </div>
-            <button class="btn small buy-btn" data-action="buyTurretCount" ${save.gold < countCost ? "disabled" : ""}>${countCost.toLocaleString("ko-KR")}💰</button>
+            <button class="btn small buy-btn" data-action="buyTurretCount" ${save.gold < countCost ? "disabled" : ""}>${formatNumber(countCost)}💰</button>
           </div>
         `);
       } else {
@@ -887,7 +894,7 @@
           <span class="lb-rank">${i + 1}</span>
           <span class="lb-name">${escapeHtml(String(r.name))}</span>
           <span class="lb-wave">웨이브 ${r.wave}</span>
-          <span class="lb-gold">${Number(r.gold).toLocaleString("ko-KR")}💰</span>
+          <span class="lb-gold">${formatNumber(r.gold)}💰</span>
         </div>
       `).join("");
     } catch (e) {
@@ -960,7 +967,7 @@
 
   // ---------- UI ----------
   function updateUI() {
-    goldValueEl.textContent = save.gold.toLocaleString("ko-KR");
+    goldValueEl.textContent = formatNumber(save.gold);
     waveValueEl.textContent = session.wave;
     bestWaveValueEl.textContent = save.bestWave;
 
@@ -973,7 +980,7 @@
 
     weaponEmojiEl.style.color = currentWeapon().tierColor;
     weaponNameEl.textContent = currentWeapon().name;
-    weaponDamageEl.textContent = Math.round(currentDamage());
+    weaponDamageEl.textContent = formatNumber(Math.round(currentDamage()));
   }
 
   // ---------- Rendering ----------
@@ -1628,7 +1635,7 @@
           spawnHitParticles(bl.x, bl.y);
           spawnHitSparks(bl.x, bl.y, Math.atan2(bl.vy, bl.vx));
           spawnShockwave(bl.x, bl.y, "#fff6c0", 14, 26);
-          showFloatingText(`-${bl.damage}`, bl.x, bl.y, bigHit ? "#ffd93d" : "#ffffff", true);
+          showFloatingText(`-${formatNumber(bl.damage)}`, bl.x, bl.y, bigHit ? "#ffd93d" : "#ffffff", true);
           sfxHit();
           if (!bl.isTurret) {
             hitStopRemaining = Math.max(hitStopRemaining, bigHit ? 75 : 40);
