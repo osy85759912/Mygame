@@ -142,6 +142,11 @@
     } catch (e) {}
   }
 
+  if (new URLSearchParams(location.search).has("reset")) {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    history.replaceState(null, "", location.pathname);
+  }
+
   let save = loadSave();
 
   function currentWeapon() {
