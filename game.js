@@ -127,7 +127,7 @@
   }
   function loadSave() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = sessionStorage.getItem(STORAGE_KEY);
       if (!raw) return defaultSave();
       const merged = Object.assign(defaultSave(), JSON.parse(raw));
       if (merged.turretLevel > 0 && merged.turretCount < 1) merged.turretCount = 1;
@@ -138,12 +138,12 @@
   }
   function persist() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(save));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(save));
     } catch (e) {}
   }
 
   if (new URLSearchParams(location.search).has("reset")) {
-    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch (e) {}
     history.replaceState(null, "", location.pathname);
   }
 
