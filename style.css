@@ -501,6 +501,16 @@ body {
   padding-bottom: 2px;
 }
 
+.footer-links {
+  text-align: center;
+  font-size: 11px;
+  padding-bottom: 2px;
+}
+.footer-links a {
+  color: var(--paper-dim);
+  text-decoration: underline;
+}
+
 .leaderboard-submit {
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.12);
