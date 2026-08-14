@@ -556,12 +556,17 @@
   }
 
   const GUARD_COOLDOWN = 3000;
-  const GUARD_PUSHBACK = 1600;
+  const GUARD_LIFT_RATIO = 0.5;
+  const GUARD_LIFT_DURATION = 320;
   let guardCooldownRemaining = 0;
 
   function useGuard() {
     ensureAudio();
     if (session.phase !== "falling" || !session.building) return;
+    if (session.building.isBoss) {
+      showFloatingText("보스전에는 방어 불가!", session.building.x + session.building.width / 2, session.building.y + session.building.height / 2, "#ff4433", true);
+      return;
+    }
     if (guardCooldownRemaining > 0) return;
     guardCooldownRemaining = GUARD_COOLDOWN;
     fireStart = performance.now();
@@ -1702,7 +1707,12 @@
         bl.y >= b.y && bl.y <= b.y + b.height
       ) {
         if (bl.isGuard) {
-          b.startTime += GUARD_PUSHBACK;
+          const liftFrom = b.y;
+          const liftTo = b.startY + (liftFrom - b.startY) * (1 - GUARD_LIFT_RATIO);
+          b.liftFrom = liftFrom;
+          b.liftTo = liftTo;
+          b.liftElapsed = 0;
+          b.liftDuration = GUARD_LIFT_DURATION;
           b.hitFlash = 6;
           spawnGuardParticles(bl.x, bl.y);
           showFloatingText("방어!", bl.x, bl.y, "#5cc8e0", true);
@@ -1910,11 +1920,26 @@
     if (session.phase === "falling" && session.building) {
       const b = session.building;
       b.startTime += rawDt - dt;
-      const t = Math.min(1, Math.max(0, (now - b.startTime) / b.duration));
-      const eased = t * t; // gravity-like acceleration: slow start, fast finish
-      b.y = b.startY + (b.targetY - b.startY) * eased;
-      if (t >= 1) {
-        crashBuilding();
+      if (b.liftDuration && b.liftElapsed < b.liftDuration) {
+        // freeze the fall clock while the guard push-up animation plays
+        b.startTime += rawDt;
+        b.liftElapsed = Math.min(b.liftDuration, b.liftElapsed + rawDt);
+        const lp = b.liftElapsed / b.liftDuration;
+        const easeOut = 1 - Math.pow(1 - lp, 3);
+        b.y = b.liftFrom + (b.liftTo - b.liftFrom) * easeOut;
+        if (b.liftElapsed >= b.liftDuration) {
+          // resync the fall clock so it continues naturally from the lifted position
+          const easedAtLiftTo = Math.min(1, Math.max(0, (b.liftTo - b.startY) / (b.targetY - b.startY)));
+          b.startTime = now - Math.sqrt(easedAtLiftTo) * b.duration;
+          b.liftDuration = 0;
+        }
+      } else {
+        const t = Math.min(1, Math.max(0, (now - b.startTime) / b.duration));
+        const eased = t * t; // gravity-like acceleration: slow start, fast finish
+        b.y = b.startY + (b.targetY - b.startY) * eased;
+        if (t >= 1) {
+          crashBuilding();
+        }
       }
     }
     if (active && guardCooldownRemaining > 0) {
@@ -1936,8 +1961,12 @@
   }
 
   function updateGuardButton() {
-    const usable = session.phase === "falling" && !!session.building && guardCooldownRemaining <= 0;
-    if (guardCooldownRemaining > 0) {
+    const isBossBuilding = !!session.building && session.building.isBoss;
+    const usable = session.phase === "falling" && !!session.building && !isBossBuilding && guardCooldownRemaining <= 0;
+    if (isBossBuilding) {
+      guardBtn.disabled = true;
+      guardLabelEl.textContent = "방어 불가";
+    } else if (guardCooldownRemaining > 0) {
       guardBtn.disabled = true;
       guardLabelEl.textContent = `방어 (${Math.ceil(guardCooldownRemaining / 1000)})`;
     } else {
