@@ -192,6 +192,7 @@
   const gameOverOverlay = document.getElementById("gameOverOverlay");
   const gameOverStats = document.getElementById("gameOverStats");
   const restartBtn = document.getElementById("restartBtn");
+  const continueBtn = document.getElementById("continueBtn");
   const shopModal = document.getElementById("shopModal");
   const shopList = document.getElementById("shopList");
   const shopGoldEl = document.getElementById("shopGold");
@@ -662,7 +663,6 @@
     if (session.lives <= 0) {
       session.phase = "gameover";
       showGameOver();
-      resetProgressOnDeath();
     } else {
       session.phase = "idle";
       nextBtn.textContent = "재도전";
@@ -675,28 +675,42 @@
     lastRunResult = { wave: session.wave, gold: save.gold };
     const cp = save.checkpoint;
     const resetLine = cp
-      ? `보스 체크포인트 덕분에 웨이브 <b>${cp.wave}</b>부터 장비를 유지한 채 다시 시작합니다.`
+      ? `웨이브 <b>${cp.wave}</b> 보스 체크포인트가 있어요. 이어하거나 처음부터 다시 시작할 수 있습니다.`
       : "모은 골드와 무기 강화는 모두 초기화됩니다.";
     gameOverStats.innerHTML = `이번 판 웨이브 <b>${session.wave}</b> 까지 도달했어요.<br>${resetLine}<br>최고 기록: 웨이브 ${save.bestWave}`;
     gameOverOverlay.classList.remove("hidden");
     resetLeaderboardSubmitUI();
+    if (cp) {
+      restartBtn.textContent = "초기화";
+      continueBtn.textContent = `이어하기 (웨이브 ${cp.wave})`;
+      continueBtn.classList.remove("hidden");
+    } else {
+      restartBtn.textContent = "다시 시작";
+      continueBtn.classList.add("hidden");
+    }
   }
 
   function resetProgressOnDeath() {
     const bestWave = save.bestWave;
-    const cp = save.checkpoint;
     save = defaultSave();
     save.bestWave = bestWave;
-    if (cp) {
-      save.checkpoint = cp;
-      save.gold = cp.gold;
-      save.weaponTier = cp.weaponTier;
-      save.dmgLevel = cp.dmgLevel;
-      save.lifeLevel = cp.lifeLevel;
-      save.goldMultLevel = cp.goldMultLevel;
-      save.turretLevel = cp.turretLevel;
-      save.turretCount = cp.turretCount;
-    }
+    persist();
+  }
+
+  function continueFromCheckpoint() {
+    const cp = save.checkpoint;
+    if (!cp) return;
+    const bestWave = save.bestWave;
+    save = defaultSave();
+    save.bestWave = bestWave;
+    save.checkpoint = cp;
+    save.gold = cp.gold;
+    save.weaponTier = cp.weaponTier;
+    save.dmgLevel = cp.dmgLevel;
+    save.lifeLevel = cp.lifeLevel;
+    save.goldMultLevel = cp.goldMultLevel;
+    save.turretLevel = cp.turretLevel;
+    save.turretCount = cp.turretCount;
     persist();
   }
 
@@ -1965,6 +1979,13 @@
 
   restartBtn.addEventListener("click", () => {
     ensureAudio();
+    if (session.phase === "gameover") resetProgressOnDeath();
+    restartRun();
+  });
+
+  continueBtn.addEventListener("click", () => {
+    ensureAudio();
+    continueFromCheckpoint();
     restartRun();
   });
 

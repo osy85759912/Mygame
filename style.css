@@ -244,6 +244,15 @@ body {
   font-size: 14px;
 }
 
+.gameover-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.gameover-actions .btn {
+  flex: 1;
+}
+
 .btn {
   border: 1px solid var(--concrete-border);
   border-radius: 7px;
@@ -361,6 +370,10 @@ body {
 }
 
 #nextBtn.hidden {
+  display: none;
+}
+
+#continueBtn.hidden {
   display: none;
 }
 
